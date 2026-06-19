@@ -160,7 +160,7 @@
 
 <div class="tab-bar">
   <button class="tab active" onclick="switchTab('randomize')">Shuffle</button>
-  <button class="tab" onclick="switchTab('add')">Add song</button>
+  <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Add song <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
   <button class="tab" onclick="switchTab('lists')">My lists</button>
 </div>
 
@@ -181,15 +181,51 @@
     <div class="filter-row" id="filter-pills"></div>
     <button class="btn-primary" onclick="randomize()">Shuffle ↓</button>
     <button class="btn-reset" onclick="resetSession()">↺ Reset session</button>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <input type="text" id="search-inp" placeholder="🔍 Search songs or artists…" oninput="renderSearch()" autocomplete="off" style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;outline:none;">
+      <div id="search-results" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
   </div>
 
   <!-- ADD SONG TAB -->
   <div id="screen-add" class="screen">
+
+    <!-- SUGGESTION BOX — visible to everyone -->
+    <div id="suggest-section">
+      <div class="section-label" style="margin-top:0">💡 Suggest a song</div>
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:16px;">
+        <div class="form-group">
+          <label class="lbl">Song title</label>
+          <input type="text" id="sug-song" placeholder="e.g. Bohemian Rhapsody" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="lbl">Artist</label>
+          <input type="text" id="sug-artist" placeholder="e.g. Queen" autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="lbl">Note (optional)</label>
+          <input type="text" id="sug-note" placeholder="e.g. great for road trips" autocomplete="off">
+        </div>
+      </div>
+      <button class="btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="submitSuggestion()">Send suggestion ✉️</button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ADMIN INBOX -->
+    <div id="suggestions-inbox" style="display:none">
+      <div class="section-label" style="margin-top:0">📬 Suggestions inbox <span id="inbox-count"></span></div>
+      <div id="suggestions-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
+      <hr class="divider">
+    </div>
+
+    <!-- ADMIN FORM -->
     <div id="add-locked" class="locked-msg" style="display:none">
       <strong>🔒 Sign in to add songs</strong>
       This app is public — anyone can shuffle.<br>Sign in with your admin Google account to add or edit songs.
     </div>
     <div id="add-form">
+      <div class="section-label" style="margin-top:0">Add a song</div>
       <div class="form-group">
         <label class="lbl">Song title</label>
         <input type="text" id="inp-song" placeholder="e.g. Bohemian Rhapsody" autocomplete="off">
@@ -302,7 +338,7 @@ const firebaseConfig = {
 // =============================================
 // 🔧 PASTE YOUR GOOGLE ACCOUNT EMAIL HERE
 // =============================================
-const ADMIN_EMAIL = "arroyoluciana.la@gmail.com";
+const ADMIN_EMAIL = "PASTE_YOUR_GMAIL_HERE";
 // =============================================
 
 const app = initializeApp(firebaseConfig);
@@ -360,6 +396,10 @@ function updateAdminUI() {
   document.getElementById('lists-form').style.display = isAdmin ? 'block' : 'none';
   renderAdd();
   renderLists();
+  renderSuggestions();
+  // Update badge visibility
+  const badge = document.getElementById('suggestions-badge');
+  if (badge) badge.style.display = suggestions.length > 0 && isAdmin ? 'inline' : 'none';
 }
 
 // ---- REALTIME DATA ----
@@ -376,6 +416,84 @@ onSnapshot(collection(db, 'songs'), snap => {
   renderPills(); renderAdd(); renderLists();
   document.getElementById('loading-overlay').style.display = 'none';
 });
+
+// ---- SUGGESTIONS ----
+let suggestions = [];
+
+onSnapshot(collection(db, 'suggestions'), snap => {
+  suggestions = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  renderSuggestions();
+  // Badge on tab
+  const pending = suggestions.length;
+  const badge = document.getElementById('suggestions-badge');
+  if (badge) {
+    badge.textContent = pending;
+    badge.style.display = pending > 0 && isAdmin ? 'inline' : 'none';
+  }
+});
+
+window.submitSuggestion = async () => {
+  const song = document.getElementById('sug-song').value.trim();
+  const artist = document.getElementById('sug-artist').value.trim();
+  const note = document.getElementById('sug-note').value.trim();
+  if (!song || !artist) { toast('Please fill in song and artist'); return; }
+  try {
+    await addDoc(collection(db, 'suggestions'), { song, artist, note, createdAt: Date.now() });
+    document.getElementById('sug-song').value = '';
+    document.getElementById('sug-artist').value = '';
+    document.getElementById('sug-note').value = '';
+    toast('Suggestion sent! 🎉');
+  } catch(e) { toast('Error: ' + e.message); }
+};
+
+let acceptingSuggestion = null;
+
+window.openAcceptSuggestion = (id) => {
+  const s = suggestions.find(x => x.id === id);
+  if (!s) return;
+  acceptingSuggestion = id;
+  // Pre-fill the add song form with the suggestion
+  document.getElementById('inp-song').value = s.song;
+  document.getElementById('inp-artist').value = s.artist;
+  addSelectedLists = [];
+  renderListChecks('add-list-checks', addSelectedLists);
+  toast('Pick lists below and tap Add song');
+  // Scroll to add form
+  document.getElementById('add-form').scrollIntoView({ behavior: 'smooth' });
+};
+
+window.acceptSuggestion = async (id) => {
+  // Called after addSong completes — removes suggestion from inbox
+  await deleteDoc(doc(db, 'suggestions', id));
+};
+
+window.dismissSuggestion = (id, name) => {
+  confirm2(`Dismiss suggestion "${name}"?`, 'It will be removed from the inbox.', async () => {
+    await deleteDoc(doc(db, 'suggestions', id));
+    toast('Dismissed');
+  });
+};
+
+function renderSuggestions() {
+  const inbox = document.getElementById('suggestions-inbox');
+  const list = document.getElementById('suggestions-list');
+  const count = document.getElementById('inbox-count');
+  if (!inbox || !list) return;
+  if (!isAdmin) { inbox.style.display = 'none'; return; }
+  inbox.style.display = suggestions.length > 0 ? 'block' : 'none';
+  if (count) count.textContent = suggestions.length > 0 ? `(${suggestions.length})` : '';
+  list.innerHTML = suggestions.map(s => `
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:13px 14px;">
+      <div style="font-size:15px;font-weight:600;color:var(--text)">${esc(s.song)}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:1px">${esc(s.artist)}</div>
+      ${s.note ? `<div style="font-size:12px;color:var(--text3);margin-top:4px;font-style:italic">"${esc(s.note)}"</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="openAcceptSuggestion('${s.id}')" style="flex:1;padding:9px;border-radius:var(--radius-xs);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer">✓ Add to app</button>
+        <button onclick="dismissSuggestion('${s.id}','${esc(s.song).replace(/'/g,"\'")}')" style="padding:9px 14px;border-radius:var(--radius-xs);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;cursor:pointer">✕</button>
+      </div>
+    </div>`).join('');
+}
 
 // ---- SHUFFLE (no-repeat) ----
 function getPool() {
@@ -629,6 +747,28 @@ function renderLists() {
     </div>`;
   }).join('');
 }
+
+// ---- SEARCH ----
+window.renderSearch = () => {
+  const q = document.getElementById('search-inp').value.trim().toLowerCase();
+  const c = document.getElementById('search-results');
+  if (!q) { c.innerHTML = ''; return; }
+  const results = songs.filter(s =>
+    s.song.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+  ).sort((a,b) => a.song.localeCompare(b.song));
+  if (!results.length) {
+    c.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:14px;padding:16px 0">No songs found</div>';
+    return;
+  }
+  c.innerHTML = results.map(s => `
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:11px 13px;">
+      <div style="font-size:15px;font-weight:600;color:var(--text)">${esc(s.song)}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:1px">${esc(s.artist)}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
+        ${(s.lists||[]).map(l=>`<span style="font-size:11px;color:var(--accent);background:var(--accent-light);padding:2px 8px;border-radius:99px">${esc(l)}</span>`).join('')}
+      </div>
+    </div>`).join('');
+};
 
 // ---- UI HELPERS ----
 window.switchTab = (tab) => {

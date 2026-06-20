@@ -317,9 +317,41 @@
   </div>
 </div>
 
+<!-- SIGN IN MODAL -->
+<div class="modal-overlay" id="signin-overlay" onclick="closeSignin()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Admin sign in</h3>
+    <div class="form-group">
+      <label class="lbl">Email</label>
+      <input type="text" id="signin-email" autocomplete="username" placeholder="you@example.com" style="text-transform:none">
+    </div>
+    <div class="form-group" style="margin-bottom:6px">
+      <label class="lbl">Password</label>
+      <input type="password" id="signin-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitSignin()">
+    </div>
+    <p id="signin-error" style="color:var(--red);font-size:13px;display:none;margin-bottom:6px"></p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSignin()">Cancel</button>
+      <button class="btn-confirm" id="signin-submit" onclick="submitSignin()">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNED IN MODAL -->
+<div class="modal-overlay" id="signedin-overlay" onclick="closeSignedIn()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Admin</h3>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px" id="signedin-email"></p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSignedIn()">Close</button>
+      <button class="btn-danger" onclick="doSignOut()">Sign out</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged, browserLocalPersistence, setPersistence }
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -336,7 +368,7 @@ const firebaseConfig = {
   appId: "1:1050109378339:web:3835f664668f86addb9696"
 };
 // =============================================
-// 🔧 PASTE YOUR GOOGLE ACCOUNT EMAIL HERE
+// 🔧 PASTE YOUR ADMIN EMAIL HERE (must match the account you create in Firebase Auth)
 // =============================================
 const ADMIN_EMAIL = "arroyoluciana.la@gmail.com";
 // =============================================
@@ -344,9 +376,6 @@ const ADMIN_EMAIL = "arroyoluciana.la@gmail.com";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-// Always show the Google account chooser instead of auto-using a cached account
-provider.setCustomParameters({ prompt: 'select_account' });
 // Make sure the login session persists across app launches (standalone + Safari)
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 
@@ -361,29 +390,57 @@ let editSelectedLists = [];
 let addSelectedLists = [];
 
 // ---- AUTH ----
-window.handleAuth = async () => {
+window.handleAuth = () => {
   if (currentUser) {
-    const choice = confirm(`Signed in as ${currentUser.email}.\n\nTap OK to sign out, or Cancel to keep browsing. To switch accounts, sign out first and sign in again.`);
-    if (choice) await signOut(auth);
+    document.getElementById('signedin-email').textContent = currentUser.email;
+    document.getElementById('signedin-overlay').classList.add('open');
   } else {
-    try {
-      await signInWithPopup(auth, provider);
-    } catch(e) {
-      if (e.code === 'auth/popup-blocked') {
-        toast('Enable popups for this site in Safari settings');
-      } else if (e.code === 'auth/cancelled-popup-request' || e.code === 'auth/popup-closed-by-user') {
-        // user closed it, no toast needed
-      } else {
-        toast('Sign in error: ' + e.message);
-      }
-    }
+    document.getElementById('signin-error').style.display = 'none';
+    document.getElementById('signin-email').value = '';
+    document.getElementById('signin-password').value = '';
+    document.getElementById('signin-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('signin-email').focus(), 200);
   }
 };
 
-// Lets you switch accounts even if one is cached
-window.switchAccount = async () => {
-  if (currentUser) await signOut(auth);
-  setTimeout(() => window.handleAuth(), 300);
+window.closeSignin = () => document.getElementById('signin-overlay').classList.remove('open');
+window.closeSignedIn = () => document.getElementById('signedin-overlay').classList.remove('open');
+
+window.submitSignin = async () => {
+  const email = document.getElementById('signin-email').value.trim();
+  const password = document.getElementById('signin-password').value;
+  const errEl = document.getElementById('signin-error');
+  errEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Enter both email and password';
+    errEl.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('signin-submit');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    closeSignin();
+    toast('Signed in!');
+  } catch(e) {
+    let msg = 'Sign in failed';
+    if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') msg = 'Incorrect email or password';
+    else if (e.code === 'auth/user-not-found') msg = 'No account with that email';
+    else if (e.code === 'auth/invalid-email') msg = 'Invalid email format';
+    else if (e.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later';
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+};
+
+window.doSignOut = async () => {
+  await signOut(auth);
+  closeSignedIn();
+  toast('Signed out');
 };
 
 onAuthStateChanged(auth, user => {

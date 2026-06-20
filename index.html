@@ -7,6 +7,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shuffle">
 <meta name="theme-color" content="#6C47FF">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <title>Shuffle</title>
 <style>
   :root {
@@ -161,7 +167,7 @@
 <div class="tab-bar">
   <button class="tab active" onclick="switchTab('randomize')">Shuffle</button>
   <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Add song <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
-  <button class="tab" onclick="switchTab('lists')">Lists</button>
+  <button class="tab" onclick="switchTab('lists')">My lists</button>
 </div>
 
 <div class="content">
@@ -648,7 +654,7 @@ function renderPills() {
 function renderListChecks(containerId, selectedArr) {
   const c = document.getElementById(containerId);
   c.innerHTML = '';
-  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">No lists yet — create one in Lists</span>'; return; }
+  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">No lists yet — create one in My lists</span>'; return; }
   lists.forEach(l => {
     const checked = selectedArr.includes(l.name);
     const item = document.createElement('label');

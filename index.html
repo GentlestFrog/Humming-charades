@@ -166,7 +166,7 @@
 
 <div class="tab-bar">
   <button class="tab active" onclick="switchTab('randomize')">Shuffle</button>
-  <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Add song <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
+  <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Agregar canción <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
   <button class="tab" onclick="switchTab('lists')">My lists</button>
 </div>
 
@@ -193,7 +193,7 @@
     </div>
   </div>
 
-  <!-- ADD SONG TAB -->
+  <!-- AGREGAR CANCIÓN TAB -->
   <div id="screen-add" class="screen">
 
     <!-- SUGGESTION BOX — visible to everyone -->
@@ -227,8 +227,8 @@
 
     <!-- ADMIN FORM -->
     <div id="add-locked" class="locked-msg" style="display:none">
-      <strong>🔒 Sign in to add songs</strong>
-      This app is public — anyone can shuffle.<br>Sign in with your admin Google account to add or edit songs.
+      <strong>🔒 Conectate para agregar canciones</strong>
+      Esta app es pública — cualquiera puede usarla.<br>Sugerí canciones de manera anónima o conectate con tu cuenta de admin para agregar o editar canciones.
     </div>
     <div id="add-form">
       <div class="section-label" style="margin-top:0">Add a song</div>
@@ -244,7 +244,7 @@
         <label class="lbl">Lists (select one or more)</label>
         <div class="list-checks" id="add-list-checks"></div>
       </div>
-      <button class="btn-secondary btn-accent" onclick="addSong()" style="margin-bottom:20px">Add song</button>
+      <button class="btn-secondary btn-accent" onclick="addSong()" style="margin-bottom:20px">Agregar canción</button>
 
       <hr class="divider">
       <div class="section-label" style="margin-top:0">Bulk import</div>
@@ -540,7 +540,7 @@ window.openAcceptSuggestion = (id) => {
   document.getElementById('inp-artist').value = s.artist;
   addSelectedLists = [];
   renderListChecks('add-list-checks', addSelectedLists);
-  toast('Pick lists below and tap Add song');
+  toast('Elegí una o más listas de abajo y tocá "Agregar canción');
   // Scroll to add form
   document.getElementById('add-form').scrollIntoView({ behavior: 'smooth' });
 };
@@ -668,7 +668,7 @@ function renderListChecks(containerId, selectedArr) {
   });
 }
 
-// ---- ADD SONG ----
+// ---- Agregá canción ----
 window.addSong = async () => {
   if (!isAdmin) return;
   const song = document.getElementById('inp-song').value.trim();

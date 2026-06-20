@@ -161,7 +161,7 @@
 <div class="tab-bar">
   <button class="tab active" onclick="switchTab('randomize')">Shuffle</button>
   <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Add song <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
-  <button class="tab" onclick="switchTab('lists')">My lists</button>
+  <button class="tab" onclick="switchTab('lists')">Lists</button>
 </div>
 
 <div class="content">
@@ -648,7 +648,7 @@ function renderPills() {
 function renderListChecks(containerId, selectedArr) {
   const c = document.getElementById(containerId);
   c.innerHTML = '';
-  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">No lists yet — create one in My lists</span>'; return; }
+  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">No lists yet — create one in Lists</span>'; return; }
   lists.forEach(l => {
     const checked = selectedArr.includes(l.name);
     const item = document.createElement('label');

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -156,28 +156,28 @@
 <div class="header">
   <div class="header-left">
     <h1>🎵 Tararealo</h1>
-    <p id="header-sub">Your song randomizer</p>
+    <p id="header-sub">Tu randomizador de canciones</p>
   </div>
   <button class="auth-btn" id="auth-btn" onclick="handleAuth()">
     <span class="auth-dot" id="auth-dot"></span>
-    <span id="auth-label">Sign in</span>
+    <span id="auth-label">Conectarse</span>
   </button>
 </div>
 
 <div class="tab-bar">
-  <button class="tab active" onclick="switchTab('randomize')">Shuffle</button>
+  <button class="tab active" onclick="switchTab('randomize')">Sortear</button>
   <button class="tab" onclick="switchTab('add')" id="tab-add-btn">Agregar canción <span id="suggestions-badge" style="display:none;background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;vertical-align:middle;margin-left:2px"></span></button>
-  <button class="tab" onclick="switchTab('lists')">My lists</button>
+  <button class="tab" onclick="switchTab('lists')">Mis listas</button>
 </div>
 
 <div class="content">
 
-  <!-- SHUFFLE TAB -->
+  <!-- PESTAÑA SORTEAR -->
   <div id="screen-randomize" class="screen active">
     <div class="result-card" id="result-card">
       <div class="result-icon">🎲</div>
-      <div class="result-song" id="res-song">Ready to shuffle</div>
-      <div class="result-artist" id="res-artist">Pick a list and tap shuffle</div>
+      <div class="result-song" id="res-song">Listo para sortear</div>
+      <div class="result-artist" id="res-artist">Elegí una lista y tocá sortear</div>
       <div class="result-tags" id="res-tags"></div>
       <div class="progress-bar-wrap" id="prog-wrap" style="display:none">
         <div class="progress-bar" id="prog-bar"></div>
@@ -185,100 +185,100 @@
       <div class="progress-label" id="prog-label"></div>
     </div>
     <div class="filter-row" id="filter-pills"></div>
-    <button class="btn-primary" onclick="randomize()">Shuffle ↓</button>
-    <button class="btn-reset" onclick="resetSession()">↺ Reset session</button>
+    <button class="btn-primary" onclick="randomize()">Sortear ↓</button>
+    <button class="btn-reset" onclick="resetSession()">↺ Reiniciar sesión</button>
     <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
-      <input type="text" id="search-inp" placeholder="🔍 Search songs or artists…" oninput="renderSearch()" autocomplete="off" style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;outline:none;">
+      <input type="text" id="search-inp" placeholder="🔍 Buscar canciones o artistas…" oninput="renderSearch()" autocomplete="off" style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;outline:none;">
       <div id="search-results" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
     </div>
   </div>
 
-  <!-- AGREGAR CANCIÓN TAB -->
+  <!-- PESTAÑA AGREGAR CANCIÓN -->
   <div id="screen-add" class="screen">
 
-    <!-- SUGGESTION BOX — visible to everyone -->
+    <!-- BUZÓN DE SUGERENCIAS — visible para todos -->
     <div id="suggest-section">
-      <div class="section-label" style="margin-top:0">💡 Suggest a song</div>
+      <div class="section-label" style="margin-top:0">💡 Sugerí una canción</div>
       <div style="background:var(--bg2);border-radius:var(--radius);padding:16px;">
         <div class="form-group">
-          <label class="lbl">Song title</label>
-          <input type="text" id="sug-song" placeholder="e.g. Bohemian Rhapsody" autocomplete="off">
+          <label class="lbl">Título de la canción</label>
+          <input type="text" id="sug-song" placeholder="ej: Bohemian Rhapsody" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="lbl">Artist</label>
-          <input type="text" id="sug-artist" placeholder="e.g. Queen" autocomplete="off">
+          <label class="lbl">Artista</label>
+          <input type="text" id="sug-artist" placeholder="ej: Queen" autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom:0">
-          <label class="lbl">Note (optional)</label>
-          <input type="text" id="sug-note" placeholder="e.g. great for road trips" autocomplete="off">
+          <label class="lbl">Nota (opcional)</label>
+          <input type="text" id="sug-note" placeholder="ej: ideal para viajes en auto" autocomplete="off">
         </div>
       </div>
-      <button class="btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="submitSuggestion()">Send suggestion ✉️</button>
+      <button class="btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="submitSuggestion()">Enviar sugerencia ✉️</button>
     </div>
 
     <hr class="divider">
 
-    <!-- ADMIN INBOX -->
+    <!-- BANDEJA DE ADMIN -->
     <div id="suggestions-inbox" style="display:none">
-      <div class="section-label" style="margin-top:0">📬 Suggestions inbox <span id="inbox-count"></span></div>
+      <div class="section-label" style="margin-top:0">📬 Sugerencias recibidas <span id="inbox-count"></span></div>
       <div id="suggestions-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
       <hr class="divider">
     </div>
 
-    <!-- ADMIN FORM -->
+    <!-- FORMULARIO DE ADMIN -->
     <div id="add-locked" class="locked-msg" style="display:none">
       <strong>🔒 Conectate para agregar canciones</strong>
       Esta app es pública — cualquiera puede usarla.<br>Sugerí canciones de manera anónima o conectate con tu cuenta de admin para agregar o editar canciones.
     </div>
     <div id="add-form">
-      <div class="section-label" style="margin-top:0">Add a song</div>
+      <div class="section-label" style="margin-top:0">Agregar una canción</div>
       <div class="form-group">
-        <label class="lbl">Song title</label>
-        <input type="text" id="inp-song" placeholder="e.g. Bohemian Rhapsody" autocomplete="off">
+        <label class="lbl">Título de la canción</label>
+        <input type="text" id="inp-song" placeholder="ej: Bohemian Rhapsody" autocomplete="off">
       </div>
       <div class="form-group">
-        <label class="lbl">Artist</label>
-        <input type="text" id="inp-artist" placeholder="e.g. Queen" autocomplete="off">
+        <label class="lbl">Artista</label>
+        <input type="text" id="inp-artist" placeholder="ej: Queen" autocomplete="off">
       </div>
       <div class="form-group">
-        <label class="lbl">Lists (select one or more)</label>
+        <label class="lbl">Listas (elegí una o más)</label>
         <div class="list-checks" id="add-list-checks"></div>
       </div>
       <button class="btn-secondary btn-accent" onclick="addSong()" style="margin-bottom:20px">Agregar canción</button>
 
       <hr class="divider">
-      <div class="section-label" style="margin-top:0">Bulk import</div>
+      <div class="section-label" style="margin-top:0">Importar en lote</div>
       <div class="import-hint">
-        Paste songs below, one per line:<br>
-        <code>Song Title - Artist Name</code><br>
-        Select one list above — they'll all be added to it.
+        Pegá las canciones abajo, una por línea:<br>
+        <code>Título de la canción - Nombre del artista</code><br>
+        Elegí una lista arriba — todas se van a agregar ahí.
       </div>
       <div class="form-group">
         <textarea id="inp-bulk" placeholder="Bohemian Rhapsody - Queen&#10;Mr. Brightside - The Killers&#10;Africa - Toto"></textarea>
       </div>
-      <button class="btn-secondary" onclick="bulkImport()" style="margin-bottom:0">Import list</button>
+      <button class="btn-secondary" onclick="bulkImport()" style="margin-bottom:0">Importar lista</button>
 
       <hr class="divider">
-      <div class="section-label" style="margin-top:0">Export / backup</div>
+      <div class="section-label" style="margin-top:0">Exportar / respaldo</div>
       <div class="export-row">
-        <button class="btn-secondary" style="margin-bottom:0" onclick="exportSongs()">Export all songs (.txt)</button>
+        <button class="btn-secondary" style="margin-bottom:0" onclick="exportSongs()">Exportar todas las canciones (.txt)</button>
       </div>
 
-      <div class="section-label">All songs</div>
+      <div class="section-label">Todas las canciones</div>
       <div class="song-list" id="all-songs"></div>
     </div>
   </div>
 
-  <!-- LISTS TAB -->
+  <!-- PESTAÑA MIS LISTAS -->
   <div id="screen-lists" class="screen">
     <div id="lists-locked" class="locked-msg" style="display:none">
-      <strong>🔒 Sign in to manage lists</strong>
-      Sign in with your admin Google account to create or delete lists.
+      <strong>🔒 Conectate para gestionar listas</strong>
+      Conectate con tu cuenta de admin para crear o eliminar listas.
     </div>
     <div id="lists-form">
       <div class="new-list-row">
-        <input type="text" id="inp-newlist" placeholder="New list name…" autocomplete="off">
-        <button class="btn-create" onclick="addList()">Create</button>
+        <input type="text" id="inp-newlist" placeholder="Nombre de la nueva lista…" autocomplete="off">
+        <button class="btn-create" onclick="addList()">Crear</button>
       </div>
     </div>
     <div id="lists-view"></div>
@@ -288,69 +288,69 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- CONFIRM MODAL -->
+<!-- MODAL DE CONFIRMACIÓN -->
 <div class="modal-overlay" id="confirm-overlay" onclick="closeConfirm()">
   <div class="modal" onclick="event.stopPropagation()">
-    <h3 id="confirm-title">Are you sure?</h3>
+    <h3 id="confirm-title">¿Estás seguro/a?</h3>
     <p id="confirm-body" style="color:var(--text2);font-size:14px;line-height:1.5"></p>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
-      <button class="btn-danger" id="confirm-ok">Delete</button>
+      <button class="btn-cancel" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn-danger" id="confirm-ok">Eliminar</button>
     </div>
   </div>
 </div>
 
-<!-- EDIT MODAL -->
+<!-- MODAL DE EDICIÓN -->
 <div class="modal-overlay" id="edit-overlay" onclick="closeEdit()">
   <div class="modal" onclick="event.stopPropagation()">
-    <h3>Edit song</h3>
+    <h3>Editar canción</h3>
     <div class="form-group">
-      <label class="lbl">Song title</label>
+      <label class="lbl">Título de la canción</label>
       <input type="text" id="edit-song" autocomplete="off">
     </div>
     <div class="form-group">
-      <label class="lbl">Artist</label>
+      <label class="lbl">Artista</label>
       <input type="text" id="edit-artist" autocomplete="off">
     </div>
     <div class="form-group">
-      <label class="lbl">Lists (select one or more)</label>
+      <label class="lbl">Listas (elegí una o más)</label>
       <div class="list-checks" id="edit-list-checks"></div>
     </div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeEdit()">Cancel</button>
-      <button class="btn-confirm" onclick="saveEdit()">Save</button>
+      <button class="btn-cancel" onclick="closeEdit()">Cancelar</button>
+      <button class="btn-confirm" onclick="saveEdit()">Guardar</button>
     </div>
   </div>
 </div>
 
-<!-- SIGN IN MODAL -->
+<!-- MODAL DE INICIO DE SESIÓN -->
 <div class="modal-overlay" id="signin-overlay" onclick="closeSignin()">
   <div class="modal" onclick="event.stopPropagation()">
-    <h3>Admin sign in</h3>
+    <h3>Inicio de sesión admin</h3>
     <div class="form-group">
       <label class="lbl">Email</label>
-      <input type="text" id="signin-email" autocomplete="username" placeholder="you@example.com" style="text-transform:none">
+      <input type="text" id="signin-email" autocomplete="username" placeholder="vos@ejemplo.com" style="text-transform:none">
     </div>
     <div class="form-group" style="margin-bottom:6px">
-      <label class="lbl">Password</label>
+      <label class="lbl">Contraseña</label>
       <input type="password" id="signin-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitSignin()">
     </div>
     <p id="signin-error" style="color:var(--red);font-size:13px;display:none;margin-bottom:6px"></p>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeSignin()">Cancel</button>
-      <button class="btn-confirm" id="signin-submit" onclick="submitSignin()">Sign in</button>
+      <button class="btn-cancel" onclick="closeSignin()">Cancelar</button>
+      <button class="btn-confirm" id="signin-submit" onclick="submitSignin()">Iniciar sesión</button>
     </div>
   </div>
 </div>
 
-<!-- SIGNED IN MODAL -->
+<!-- MODAL DE SESIÓN INICIADA -->
 <div class="modal-overlay" id="signedin-overlay" onclick="closeSignedIn()">
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Admin</h3>
     <p style="color:var(--text2);font-size:14px;margin-bottom:14px" id="signedin-email"></p>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeSignedIn()">Close</button>
-      <button class="btn-danger" onclick="doSignOut()">Sign out</button>
+      <button class="btn-cancel" onclick="closeSignedIn()">Cerrar</button>
+      <button class="btn-danger" onclick="doSignOut()">Cerrar sesión</button>
     </div>
   </div>
 </div>
@@ -363,7 +363,7 @@ import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // =============================================
-// 🔧 PASTE YOUR FIREBASE CONFIG HERE
+// 🔧 CONFIGURACIÓN DE FIREBASE
 // =============================================
 const firebaseConfig = {
   apiKey: "AIzaSyCXe3p97_LpXUf1NElSrEwXWMRq8x9HoUc",
@@ -374,7 +374,7 @@ const firebaseConfig = {
   appId: "1:1050109378339:web:3835f664668f86addb9696"
 };
 // =============================================
-// 🔧 PASTE YOUR ADMIN EMAIL HERE (must match the account you create in Firebase Auth)
+// 🔧 EMAIL DE ADMIN (debe coincidir con la cuenta creada en Firebase Auth)
 // =============================================
 const ADMIN_EMAIL = "arroyoluciana.la@gmail.com";
 // =============================================
@@ -382,7 +382,7 @@ const ADMIN_EMAIL = "arroyoluciana.la@gmail.com";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Make sure the login session persists across app launches (standalone + Safari)
+// Mantiene la sesión iniciada entre usos de la app (standalone + Safari)
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 let currentUser = null;
@@ -390,12 +390,12 @@ let isAdmin = false;
 let songs = [];
 let lists = [];
 let filterLists = [];
-let sessionPlayed = new Set(); // IDs played this session
+let sessionPlayed = new Set(); // IDs sorteados en esta sesión
 let editingId = null;
 let editSelectedLists = [];
 let addSelectedLists = [];
 
-// ---- AUTH ----
+// ---- AUTENTICACIÓN ----
 window.handleAuth = () => {
   if (currentUser) {
     document.getElementById('signedin-email').textContent = currentUser.email;
@@ -418,35 +418,35 @@ window.submitSignin = async () => {
   const errEl = document.getElementById('signin-error');
   errEl.style.display = 'none';
   if (!email || !password) {
-    errEl.textContent = 'Enter both email and password';
+    errEl.textContent = 'Completá el email y la contraseña';
     errEl.style.display = 'block';
     return;
   }
   const btn = document.getElementById('signin-submit');
   btn.disabled = true;
-  btn.textContent = 'Signing in…';
+  btn.textContent = 'Iniciando sesión…';
   try {
     await signInWithEmailAndPassword(auth, email, password);
     closeSignin();
-    toast('Signed in!');
+    toast('¡Sesión iniciada!');
   } catch(e) {
-    let msg = 'Sign in failed';
-    if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') msg = 'Incorrect email or password';
-    else if (e.code === 'auth/user-not-found') msg = 'No account with that email';
-    else if (e.code === 'auth/invalid-email') msg = 'Invalid email format';
-    else if (e.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later';
+    let msg = 'No se pudo iniciar sesión';
+    if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') msg = 'Email o contraseña incorrectos';
+    else if (e.code === 'auth/user-not-found') msg = 'No existe una cuenta con ese email';
+    else if (e.code === 'auth/invalid-email') msg = 'Formato de email inválido';
+    else if (e.code === 'auth/too-many-requests') msg = 'Demasiados intentos. Probá de nuevo más tarde';
     errEl.textContent = msg;
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Sign in';
+    btn.textContent = 'Iniciar sesión';
   }
 };
 
 window.doSignOut = async () => {
   await signOut(auth);
   closeSignedIn();
-  toast('Signed out');
+  toast('Sesión cerrada');
 };
 
 onAuthStateChanged(auth, user => {
@@ -462,12 +462,12 @@ function updateAuthUI() {
   const sub = document.getElementById('header-sub');
   if (currentUser) {
     dot.classList.add('online');
-    label.textContent = currentUser.displayName?.split(' ')[0] || 'Me';
-    sub.textContent = isAdmin ? 'Admin mode 🔑' : 'Your song randomizer';
+    label.textContent = currentUser.displayName?.split(' ')[0] || 'Yo';
+    sub.textContent = isAdmin ? 'Modo admin 🔑' : 'Tu randomizador de canciones';
   } else {
     dot.classList.remove('online');
-    label.textContent = 'Sign in';
-    sub.textContent = 'Your song randomizer';
+    label.textContent = 'Conectarse';
+    sub.textContent = 'Tu randomizador de canciones';
   }
 }
 
@@ -479,12 +479,12 @@ function updateAdminUI() {
   renderAdd();
   renderLists();
   renderSuggestions();
-  // Update badge visibility
+  // Actualiza visibilidad del badge
   const badge = document.getElementById('suggestions-badge');
   if (badge) badge.style.display = suggestions.length > 0 && isAdmin ? 'inline' : 'none';
 }
 
-// ---- REALTIME DATA ----
+// ---- DATOS EN TIEMPO REAL ----
 onSnapshot(collection(db, 'lists'), snap => {
   lists = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(a.order||0)-(b.order||0));
   renderPills(); renderAdd(); renderLists();
@@ -493,20 +493,20 @@ onSnapshot(collection(db, 'lists'), snap => {
 
 onSnapshot(collection(db, 'songs'), snap => {
   songs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  // normalise: ensure lists field is always array
+  // normaliza: asegura que lists siempre sea un array
   songs.forEach(s => { if (!Array.isArray(s.lists)) s.lists = s.list ? [s.list] : []; });
   renderPills(); renderAdd(); renderLists();
   document.getElementById('loading-overlay').style.display = 'none';
 });
 
-// ---- SUGGESTIONS ----
+// ---- SUGERENCIAS ----
 let suggestions = [];
 
 onSnapshot(collection(db, 'suggestions'), snap => {
   suggestions = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
   renderSuggestions();
-  // Badge on tab
+  // Badge en la pestaña
   const pending = suggestions.length;
   const badge = document.getElementById('suggestions-badge');
   if (badge) {
@@ -519,13 +519,13 @@ window.submitSuggestion = async () => {
   const song = document.getElementById('sug-song').value.trim();
   const artist = document.getElementById('sug-artist').value.trim();
   const note = document.getElementById('sug-note').value.trim();
-  if (!song || !artist) { toast('Please fill in song and artist'); return; }
+  if (!song || !artist) { toast('Completá el título y el artista'); return; }
   try {
     await addDoc(collection(db, 'suggestions'), { song, artist, note, createdAt: Date.now() });
     document.getElementById('sug-song').value = '';
     document.getElementById('sug-artist').value = '';
     document.getElementById('sug-note').value = '';
-    toast('Suggestion sent! 🎉');
+    toast('¡Sugerencia enviada! 🎉');
   } catch(e) { toast('Error: ' + e.message); }
 };
 
@@ -535,25 +535,25 @@ window.openAcceptSuggestion = (id) => {
   const s = suggestions.find(x => x.id === id);
   if (!s) return;
   acceptingSuggestion = id;
-  // Pre-fill the add song form with the suggestion
+  // Precarga el formulario con los datos de la sugerencia
   document.getElementById('inp-song').value = s.song;
   document.getElementById('inp-artist').value = s.artist;
   addSelectedLists = [];
   renderListChecks('add-list-checks', addSelectedLists);
-  toast('Elegí una o más listas de abajo y tocá "Agregar canción');
-  // Scroll to add form
+  toast('Elegí una o más listas abajo y tocá "Agregar canción"');
+  // Desplaza hasta el formulario
   document.getElementById('add-form').scrollIntoView({ behavior: 'smooth' });
 };
 
 window.acceptSuggestion = async (id) => {
-  // Called after addSong completes — removes suggestion from inbox
+  // Se llama después de addSong — elimina la sugerencia de la bandeja
   await deleteDoc(doc(db, 'suggestions', id));
 };
 
 window.dismissSuggestion = (id, name) => {
-  confirm2(`Dismiss suggestion "${name}"?`, 'It will be removed from the inbox.', async () => {
+  confirm2(`¿Descartar la sugerencia "${name}"?`, 'Se va a eliminar de la bandeja.', async () => {
     await deleteDoc(doc(db, 'suggestions', id));
-    toast('Dismissed');
+    toast('Descartada');
   });
 };
 
@@ -571,13 +571,13 @@ function renderSuggestions() {
       <div style="font-size:13px;color:var(--text2);margin-top:1px">${esc(s.artist)}</div>
       ${s.note ? `<div style="font-size:12px;color:var(--text3);margin-top:4px;font-style:italic">"${esc(s.note)}"</div>` : ''}
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button onclick="openAcceptSuggestion('${s.id}')" style="flex:1;padding:9px;border-radius:var(--radius-xs);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer">✓ Add to app</button>
-        <button onclick="dismissSuggestion('${s.id}','${esc(s.song).replace(/'/g,"\'")}')" style="padding:9px 14px;border-radius:var(--radius-xs);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;cursor:pointer">✕</button>
+        <button onclick="openAcceptSuggestion('${s.id}')" style="flex:1;padding:9px;border-radius:var(--radius-xs);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer">✓ Agregar a la app</button>
+        <button onclick="dismissSuggestion('${s.id}','${esc(s.song).replace(/'/g,"\\'")}')" style="padding:9px 14px;border-radius:var(--radius-xs);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;cursor:pointer">✕</button>
       </div>
     </div>`).join('');
 }
 
-// ---- SHUFFLE (no-repeat) ----
+// ---- SORTEO (sin repetir) ----
 function getPool() {
   if (filterLists.length === 0) return songs;
   return songs.filter(s => s.lists && s.lists.some(l => filterLists.includes(l)));
@@ -585,14 +585,14 @@ function getPool() {
 
 window.randomize = () => {
   const pool = getPool();
-  if (!pool.length) { toast('No songs in this selection'); return; }
+  if (!pool.length) { toast('No hay canciones en esta selección'); return; }
 
   let unplayed = pool.filter(s => !sessionPlayed.has(s.id));
   if (unplayed.length === 0) {
-    // All played — reset and start fresh
+    // Ya se mostraron todas — reinicia y empieza de nuevo
     sessionPlayed.clear();
     unplayed = [...pool];
-    toast('All songs played! Starting over 🔄');
+    toast('¡Ya se mostraron todas! Arrancamos de nuevo 🔄');
   }
 
   const pick = unplayed[Math.floor(Math.random() * unplayed.length)];
@@ -608,12 +608,12 @@ window.randomize = () => {
     const tagsEl = document.getElementById('res-tags');
     tagsEl.innerHTML = (pick.lists||[]).map(l => `<span class="result-tag">${esc(l)}</span>`).join('');
 
-    // Progress
+    // Progreso
     const played = pool.filter(s => sessionPlayed.has(s.id)).length;
     const total = pool.length;
     document.getElementById('prog-wrap').style.display = 'block';
     document.getElementById('prog-bar').style.width = `${(played/total)*100}%`;
-    document.getElementById('prog-label').textContent = `${played} of ${total} played this session`;
+    document.getElementById('prog-label').textContent = `${played} de ${total} mostradas en esta sesión`;
 
     card.style.opacity = '1';
   }, 150);
@@ -624,18 +624,18 @@ window.resetSession = () => {
   const wrap = document.getElementById('prog-wrap');
   wrap.style.display = 'none';
   document.getElementById('prog-label').textContent = '';
-  document.getElementById('res-song').textContent = 'Ready to shuffle';
-  document.getElementById('res-artist').textContent = 'Pick a list and tap shuffle';
+  document.getElementById('res-song').textContent = 'Listo para sortear';
+  document.getElementById('res-artist').textContent = 'Elegí una lista y tocá sortear';
   document.getElementById('res-tags').innerHTML = '';
   document.getElementById('result-card').querySelector('.result-icon').textContent = '🎲';
-  toast('Session reset');
+  toast('Sesión reiniciada');
 };
 
 window.renderPills = renderPills;
 function renderPills() {
   const c = document.getElementById('filter-pills');
   c.innerHTML = '';
-  const all = mkEl('button','pill'+(filterLists.length===0?' active':''),'All');
+  const all = mkEl('button','pill'+(filterLists.length===0?' active':''),'Todas');
   all.onclick = () => { filterLists=[]; sessionPlayed.clear(); renderPills(); };
   c.appendChild(all);
   lists.forEach(l => {
@@ -650,11 +650,11 @@ function renderPills() {
   });
 }
 
-// ---- MULTI-LIST CHECKBOX WIDGET ----
+// ---- WIDGET DE CHECKBOXES MULTI-LISTA ----
 function renderListChecks(containerId, selectedArr) {
   const c = document.getElementById(containerId);
   c.innerHTML = '';
-  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">No lists yet — create one in My lists</span>'; return; }
+  if (!lists.length) { c.innerHTML = '<span style="font-size:13px;color:var(--text3)">Todavía no hay listas — creá una en Mis listas</span>'; return; }
   lists.forEach(l => {
     const checked = selectedArr.includes(l.name);
     const item = document.createElement('label');
@@ -668,29 +668,29 @@ function renderListChecks(containerId, selectedArr) {
   });
 }
 
-// ---- Agregá canción ----
+// ---- AGREGAR CANCIÓN ----
 window.addSong = async () => {
   if (!isAdmin) return;
   const song = document.getElementById('inp-song').value.trim();
   const artist = document.getElementById('inp-artist').value.trim();
-  if (!song || !artist) { toast('Fill in song and artist'); return; }
-  if (!addSelectedLists.length) { toast('Select at least one list'); return; }
+  if (!song || !artist) { toast('Completá el título y el artista'); return; }
+  if (!addSelectedLists.length) { toast('Elegí al menos una lista'); return; }
   try {
     await addDoc(collection(db,'songs'), { song, artist, lists: [...addSelectedLists], createdAt: Date.now() });
     document.getElementById('inp-song').value = '';
     document.getElementById('inp-artist').value = '';
     addSelectedLists = [];
     renderListChecks('add-list-checks', addSelectedLists);
-    toast('Song added!');
+    toast('¡Canción agregada!');
   } catch(e) { toast('Error: '+e.message); }
 };
 
 window.deleteSong = (id, name) => {
   if (!isAdmin) return;
-  confirm2(`Delete "${name}"?`, 'This cannot be undone.', async () => {
+  confirm2(`¿Eliminar "${name}"?`, 'Esta acción no se puede deshacer.', async () => {
     await deleteDoc(doc(db,'songs',id));
     sessionPlayed.delete(id);
-    toast('Removed');
+    toast('Eliminada');
   });
 };
 
@@ -698,7 +698,7 @@ function renderAdd() {
   renderListChecks('add-list-checks', addSelectedLists);
   const c = document.getElementById('all-songs');
   if (!c) return;
-  if (!songs.length) { c.innerHTML = '<div class="empty">No songs yet</div>'; return; }
+  if (!songs.length) { c.innerHTML = '<div class="empty">Todavía no hay canciones</div>'; return; }
   const sorted = [...songs].sort((a,b)=>a.song.localeCompare(b.song));
   c.innerHTML = sorted.map(s => `
     <div class="song-item">
@@ -709,53 +709,53 @@ function renderAdd() {
       </div>
       <div class="song-actions">
         ${isAdmin?`
-          <button class="btn-icon" onclick="openEdit('${s.id}')" title="Edit">✏️</button>
+          <button class="btn-icon" onclick="openEdit('${s.id}')" title="Editar">✏️</button>
           <button class="btn-icon" onclick="deleteSong('${s.id}','${esc(s.song).replace(/'/g,"\\'")}')">✕</button>
         `:''}
       </div>
     </div>`).join('');
 }
 
-// ---- BULK IMPORT ----
+// ---- IMPORTAR EN LOTE ----
 window.bulkImport = async () => {
   if (!isAdmin) return;
   const raw = document.getElementById('inp-bulk').value.trim();
-  if (!addSelectedLists.length) { toast('Select at least one list above first'); return; }
-  if (!raw) { toast('Paste some songs first'); return; }
+  if (!addSelectedLists.length) { toast('Elegí al menos una lista arriba primero'); return; }
+  if (!raw) { toast('Pegá algunas canciones primero'); return; }
   const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
   const parsed = lines.map(line => {
     const sep = line.lastIndexOf(' - ');
     if (sep===-1) return null;
     return { song: line.slice(0,sep).trim(), artist: line.slice(sep+3).trim(), lists:[...addSelectedLists], createdAt:Date.now() };
   }).filter(Boolean);
-  if (!parsed.length) { toast('No valid lines. Use: Song - Artist'); return; }
+  if (!parsed.length) { toast('No se encontraron líneas válidas. Usá: Canción - Artista'); return; }
   confirm2(
-    `Import ${parsed.length} song${parsed.length>1?'s':''}?`,
-    `Into: ${addSelectedLists.join(', ')}\n\nFirst songs: ${parsed.slice(0,3).map(p=>p.song).join(', ')}${parsed.length>3?'…':''}`,
+    `¿Importar ${parsed.length} canción${parsed.length>1?'es':''}?`,
+    `A la lista: ${addSelectedLists.join(', ')}\n\nPrimeras canciones: ${parsed.slice(0,3).map(p=>p.song).join(', ')}${parsed.length>3?'…':''}`,
     async () => {
       const batch = writeBatch(db);
       parsed.forEach(p => batch.set(doc(collection(db,'songs')),p));
       await batch.commit();
       document.getElementById('inp-bulk').value='';
-      toast(`${parsed.length} songs imported!`);
+      toast(`¡${parsed.length} canciones importadas!`);
     }
   );
 };
 
-// ---- EXPORT ----
+// ---- EXPORTAR ----
 window.exportSongs = () => {
-  if (!songs.length) { toast('No songs to export'); return; }
+  if (!songs.length) { toast('No hay canciones para exportar'); return; }
   const sorted = [...songs].sort((a,b)=>a.song.localeCompare(b.song));
   let txt = sorted.map(s=>`${s.song} - ${s.artist} [${(s.lists||[]).join(', ')}]`).join('\n');
   const blob = new Blob([txt],{type:'text/plain'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'shuffle-songs.txt';
+  a.download = 'tararealo-canciones.txt';
   a.click();
-  toast('Exported!');
+  toast('¡Exportado!');
 };
 
-// ---- EDIT MODAL ----
+// ---- MODAL DE EDICIÓN ----
 window.openEdit = (id) => {
   if (!isAdmin) return;
   const s = songs.find(x=>x.id===id);
@@ -777,51 +777,51 @@ window.saveEdit = async () => {
   if (!isAdmin || !editingId) return;
   const song = document.getElementById('edit-song').value.trim();
   const artist = document.getElementById('edit-artist').value.trim();
-  if (!song || !artist) { toast('Fill in song and artist'); return; }
-  if (!editSelectedLists.length) { toast('Select at least one list'); return; }
+  if (!song || !artist) { toast('Completá el título y el artista'); return; }
+  if (!editSelectedLists.length) { toast('Elegí al menos una lista'); return; }
   try {
     await updateDoc(doc(db,'songs',editingId), { song, artist, lists:[...editSelectedLists] });
     closeEdit();
-    toast('Saved!');
+    toast('¡Guardado!');
   } catch(e) { toast('Error: '+e.message); }
 };
 
-// ---- LISTS ----
+// ---- LISTAS ----
 window.addList = async () => {
   if (!isAdmin) return;
   const inp = document.getElementById('inp-newlist');
   const name = inp.value.trim();
   if (!name) return;
-  if (lists.find(l=>l.name===name)) { toast('List already exists'); return; }
+  if (lists.find(l=>l.name===name)) { toast('Esa lista ya existe'); return; }
   await addDoc(collection(db,'lists'),{ name, order:lists.length, createdAt:Date.now() });
   inp.value='';
-  toast(`"${name}" created`);
+  toast(`"${name}" creada`);
 };
 
 window.deleteList = (id, name) => {
   if (!isAdmin) return;
   const count = songs.filter(s=>(s.lists||[]).includes(name)).length;
-  if (count>0) { toast(`${count} song${count>1?'s':''} still in this list`); return; }
-  confirm2(`Delete list "${name}"?`,'This cannot be undone.', async ()=>{
+  if (count>0) { toast(`Todavía hay ${count} canción${count>1?'es':''} en esta lista`); return; }
+  confirm2(`¿Eliminar la lista "${name}"?`,'Esta acción no se puede deshacer.', async ()=>{
     await deleteDoc(doc(db,'lists',id));
-    toast('List removed');
+    toast('Lista eliminada');
   });
 };
 
 function renderLists() {
   const c = document.getElementById('lists-view');
-  if (!lists.length) { c.innerHTML='<div class="empty">No lists yet</div>'; return; }
+  if (!lists.length) { c.innerHTML='<div class="empty">Todavía no hay listas</div>'; return; }
   c.innerHTML = lists.map(l=>{
     const ls = songs.filter(s=>(s.lists||[]).includes(l.name));
     const rows = ls.length
       ? ls.slice(0,5).map(s=>`<div class="list-song-row"><span>${esc(s.song)}</span><span>${esc(s.artist)}</span></div>`).join('')
-        + (ls.length>5?`<div style="font-size:12px;color:var(--text3);padding:5px 0 0">+${ls.length-5} more</div>`:'')
-      : '<div style="font-size:13px;color:var(--text3);padding:4px 0">Empty</div>';
+        + (ls.length>5?`<div style="font-size:12px;color:var(--text3);padding:5px 0 0">+${ls.length-5} más</div>`:'')
+      : '<div style="font-size:13px;color:var(--text3);padding:4px 0">Vacía</div>';
     return `<div class="list-card">
       <div class="list-card-hdr">
         <div class="list-card-name">${esc(l.name)}</div>
         <div class="list-card-meta">
-          <span class="list-card-count">${ls.length} song${ls.length!==1?'s':''}</span>
+          <span class="list-card-count">${ls.length} canción${ls.length!==1?'es':''}</span>
           ${isAdmin?`<button class="btn-icon" onclick="deleteList('${l.id}','${esc(l.name).replace(/'/g,"\\'")}')">✕</button>`:''}
         </div>
       </div>
@@ -830,7 +830,7 @@ function renderLists() {
   }).join('');
 }
 
-// ---- SEARCH ----
+// ---- BÚSQUEDA ----
 window.renderSearch = () => {
   const q = document.getElementById('search-inp').value.trim().toLowerCase();
   const c = document.getElementById('search-results');
@@ -839,7 +839,7 @@ window.renderSearch = () => {
     s.song.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
   ).sort((a,b) => a.song.localeCompare(b.song));
   if (!results.length) {
-    c.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:14px;padding:16px 0">No songs found</div>';
+    c.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:14px;padding:16px 0">No se encontraron canciones</div>';
     return;
   }
   c.innerHTML = results.map(s => `
@@ -852,7 +852,7 @@ window.renderSearch = () => {
     </div>`).join('');
 };
 
-// ---- UI HELPERS ----
+// ---- UTILIDADES DE INTERFAZ ----
 window.switchTab = (tab) => {
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['randomize','add','lists'][i]===tab));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));

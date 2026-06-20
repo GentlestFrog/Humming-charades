@@ -319,7 +319,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithRedirect, getRedirectResult, signOut, GoogleAuthProvider, onAuthStateChanged }
+import { getAuth, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged, browserLocalPersistence, setPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -345,6 +345,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
+// Always show the Google account chooser instead of auto-using a cached account
+provider.setCustomParameters({ prompt: 'select_account' });
+// Make sure the login session persists across app launches (standalone + Safari)
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 let currentUser = null;
 let isAdmin = false;
@@ -357,14 +361,29 @@ let editSelectedLists = [];
 let addSelectedLists = [];
 
 // ---- AUTH ----
-// Handle redirect result on page load (Safari PWA fix)
-getRedirectResult(auth).catch(() => {});
 window.handleAuth = async () => {
   if (currentUser) {
-    if (confirm('Sign out?')) await signOut(auth);
+    const choice = confirm(`Signed in as ${currentUser.email}.\n\nTap OK to sign out, or Cancel to keep browsing. To switch accounts, sign out first and sign in again.`);
+    if (choice) await signOut(auth);
   } else {
-    try { await signInWithRedirect(auth, provider); } catch(e) { toast('Sign in error'); }
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked') {
+        toast('Enable popups for this site in Safari settings');
+      } else if (e.code === 'auth/cancelled-popup-request' || e.code === 'auth/popup-closed-by-user') {
+        // user closed it, no toast needed
+      } else {
+        toast('Sign in error: ' + e.message);
+      }
+    }
   }
+};
+
+// Lets you switch accounts even if one is cached
+window.switchAccount = async () => {
+  if (currentUser) await signOut(auth);
+  setTimeout(() => window.handleAuth(), 300);
 };
 
 onAuthStateChanged(auth, user => {

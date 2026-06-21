@@ -399,6 +399,20 @@
   </div>
 </div>
 
+<!-- MODAL DE SESIÓN GRUPAL: PEDIR NOMBRE -->
+<div class="modal-overlay" id="group-name-overlay">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>¿Cómo te llamás?</h3>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px">Así sabemos de quién es cada turno.</p>
+    <div class="form-group" style="margin-bottom:6px">
+      <input type="text" id="group-name-input" placeholder="Tu nombre" autocomplete="off" maxlength="20" onkeydown="if(event.key==='Enter')submitGroupName()">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-confirm" style="width:100%" onclick="submitGroupName()">Continuar</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence }
@@ -621,13 +635,16 @@ function renderSuggestions() {
     </div>`).join('');
 }
 
-// ---- SESIÓN GRUPAL ----
-let groupCode = null;       // código de la sesión grupal activa, o null si es local
-let groupPlayedIds = [];    // IDs ya sorteados (para no repetir) — visible siempre
-let groupHistory = [];      // historial completo {song, artist, lists, ts} — oculto hasta terminar partida
+// ---- SESIÓN GRUPAL (con orden fijo de turnos) ----
+let groupCode = null;        // código de la sesión grupal activa, o null si es local
+let groupPlayedIds = [];     // IDs ya sorteados (para no repetir) — visible siempre
+let groupHistory = [];       // historial completo {song, artist, lists, ts} — oculto hasta terminar partida
 let groupCurrentTurn = null; // {holderId, song, artist, lists, ts} o null si está libre
+let groupParticipants = [];  // [{deviceId, name, joinedAt}] en orden de llegada
+let groupTurnIndex = 0;      // índice en groupParticipants de quién le toca ahora
 let groupEnded = false;
 let unsubGroup = null;
+let pendingGroupAction = null; // 'create' o código a unir, mientras se pide el nombre
 let myDeviceId = (function() {
   let id = localStorage.getItem('tararealo_device_id');
   if (!id) {
@@ -636,6 +653,7 @@ let myDeviceId = (function() {
   }
   return id;
 })();
+let myDeviceName = localStorage.getItem('tararealo_device_name') || '';
 
 function genGroupCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin caracteres ambiguos
@@ -644,20 +662,42 @@ function genGroupCode() {
   return code;
 }
 
-window.createGroupSession = async () => {
-  const code = genGroupCode();
-  try {
-    await setDoc(doc(db, 'groupSessions', code), {
-      createdAt: Date.now(),
-      playedIds: [],
-      history: [],
-      currentTurn: null,
-      ended: false,
-    });
-    joinGroupSession(code);
-    document.getElementById('group-code-display').textContent = code;
-    document.getElementById('group-share-overlay').classList.add('open');
-  } catch(e) { toast('Error creando la sesión: ' + e.message); }
+// ---- Pedido de nombre (se usa tanto para crear como para unirse) ----
+function ensureNameThen(action) {
+  if (myDeviceName) { action(); return; }
+  pendingGroupAction = action;
+  document.getElementById('group-name-input').value = '';
+  document.getElementById('group-name-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('group-name-input').focus(), 200);
+}
+
+window.submitGroupName = () => {
+  const name = document.getElementById('group-name-input').value.trim();
+  if (!name) { toast('Escribí tu nombre'); return; }
+  myDeviceName = name;
+  localStorage.setItem('tararealo_device_name', name);
+  document.getElementById('group-name-overlay').classList.remove('open');
+  if (pendingGroupAction) { const fn = pendingGroupAction; pendingGroupAction = null; fn(); }
+};
+
+window.createGroupSession = () => {
+  ensureNameThen(async () => {
+    const code = genGroupCode();
+    try {
+      await setDoc(doc(db, 'groupSessions', code), {
+        createdAt: Date.now(),
+        playedIds: [],
+        history: [],
+        currentTurn: null,
+        participants: [{ deviceId: myDeviceId, name: myDeviceName, joinedAt: Date.now() }],
+        turnIndex: 0,
+        ended: false,
+      });
+      joinGroupSession(code, true);
+      document.getElementById('group-code-display').textContent = code;
+      document.getElementById('group-share-overlay').classList.add('open');
+    } catch(e) { toast('Error creando la sesión: ' + e.message); }
+  });
 };
 
 window.copyGroupLink = async () => {
@@ -684,17 +724,17 @@ window.submitJoinGroup = () => {
   const code = document.getElementById('group-join-code').value.trim().toUpperCase();
   if (!code) return;
   closeGroupJoin();
-  joinGroupSession(code);
+  ensureNameThen(() => joinGroupSession(code, false));
 };
 
-function joinGroupSession(code) {
+async function joinGroupSession(code, isCreator) {
   if (unsubGroup) unsubGroup();
   groupCode = code;
   const url = new URL(location.href);
   url.searchParams.set('session', code);
   history.replaceState({}, '', url);
 
-  unsubGroup = onSnapshot(doc(db, 'groupSessions', code), snap => {
+  unsubGroup = onSnapshot(doc(db, 'groupSessions', code), async snap => {
     if (!snap.exists()) {
       toast('Esa sesión grupal no existe o ya terminó');
       leaveGroupSession();
@@ -704,7 +744,19 @@ function joinGroupSession(code) {
     groupPlayedIds = data.playedIds || [];
     groupHistory = data.history || [];
     groupCurrentTurn = data.currentTurn || null;
+    groupParticipants = data.participants || [];
+    groupTurnIndex = data.turnIndex || 0;
     groupEnded = !!data.ended;
+
+    // Si no estoy en la lista de participantes todavía, me agrego (solo si no soy quien creó la sesión, eso ya se hizo)
+    if (!isCreator && !groupParticipants.some(p => p.deviceId === myDeviceId)) {
+      try {
+        await updateDoc(doc(db, 'groupSessions', code), {
+          participants: [...groupParticipants, { deviceId: myDeviceId, name: myDeviceName, joinedAt: Date.now() }],
+        });
+      } catch(e) { /* se reintentará en el próximo snapshot si falla */ }
+    }
+
     renderGroupBar();
     renderTurnUI();
     renderHistory();
@@ -720,6 +772,8 @@ window.leaveGroupSession = () => {
   groupPlayedIds = [];
   groupHistory = [];
   groupCurrentTurn = null;
+  groupParticipants = [];
+  groupTurnIndex = 0;
   groupEnded = false;
   const url = new URL(location.href);
   url.searchParams.delete('session');
@@ -729,17 +783,27 @@ window.leaveGroupSession = () => {
   toast('Saliste de la sesión grupal');
 };
 
+function currentTurnHolder() {
+  if (!groupParticipants.length) return null;
+  return groupParticipants[groupTurnIndex % groupParticipants.length] || null;
+}
+
 function renderGroupBar() {
   const bar = document.getElementById('group-session-bar');
   if (!bar) return;
   if (groupCode) {
+    const holder = currentTurnHolder();
+    const order = groupParticipants.map((p, i) => {
+      const isNow = holder && p.deviceId === holder.deviceId;
+      return `<span style="${isNow ? 'font-weight:700;color:var(--accent)' : 'color:var(--text2)'}">${esc(p.name)}${p.deviceId===myDeviceId?' (vos)':''}</span>`;
+    }).join(' → ');
     bar.innerHTML = `
-      <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div>
+      <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
           <div style="font-size:13px;font-weight:700;color:var(--accent)">🟣 Sesión grupal: ${esc(groupCode)}</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:1px">Juego por turnos — cada uno ve solo su canción</div>
+          <button onclick="leaveGroupSession()" style="flex-shrink:0;padding:5px 10px;border-radius:99px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:11px;cursor:pointer">Salir</button>
         </div>
-        <button onclick="leaveGroupSession()" style="flex-shrink:0;padding:7px 12px;border-radius:99px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;cursor:pointer">Salir</button>
+        <div style="font-size:12px;line-height:1.6">${order || 'Esperando jugadores…'}</div>
       </div>`;
   } else {
     bar.innerHTML = `
@@ -754,19 +818,14 @@ function renderGroupBar() {
 (function checkUrlForSession() {
   const params = new URLSearchParams(location.search);
   const s = params.get('session');
-  if (s) joinGroupSession(s.toUpperCase());
+  if (s) ensureNameThen(() => joinGroupSession(s.toUpperCase(), false));
   else { renderGroupBar(); renderTurnUI(); }
 })();
 
-// ---- SORTEO (sin repetir, local o grupal con turnos) ----
+// ---- SORTEO (sin repetir, local o grupal con turnos fijos) ----
 function getPool() {
   if (filterLists.length === 0) return songs;
   return songs.filter(s => s.lists && s.lists.some(l => filterLists.includes(l)));
-}
-
-function getPlayedIds() {
-  if (groupCode) return new Set(groupPlayedIds);
-  return sessionPlayed;
 }
 
 // Controla qué se ve: botón sortear, tarjeta de resultado, mensajes de turno
@@ -775,7 +834,6 @@ function renderTurnUI() {
   const resetBtn = document.querySelector('#screen-randomize .btn-reset:not(#btn-end-game)');
 
   if (!groupCode) {
-    // en modo local no hay turnos ni botón de terminar partida
     if (endBtn) endBtn.style.display = 'none';
     if (resetBtn) resetBtn.style.display = 'block';
     return;
@@ -801,16 +859,36 @@ function renderTurnUI() {
   }
 
   btn.style.display = 'block';
+  const holder = currentTurnHolder();
+  const itsMyTurn = holder && holder.deviceId === myDeviceId;
 
   if (!groupCurrentTurn) {
-    // Turno libre — cualquiera puede sortear
-    btn.disabled = false;
-    btn.textContent = 'Sortear ↓';
-    btn.style.opacity = '1';
-    icon.textContent = '🎲';
-    songEl.textContent = 'Listo para sortear';
-    artistEl.textContent = 'Tocá sortear cuando te toque tu turno';
-    tagsEl.innerHTML = '';
+    // Turno libre — pero solo puede sortear quien corresponde por orden
+    if (!holder) {
+      btn.disabled = true;
+      btn.textContent = 'Esperando jugadores…';
+      btn.style.opacity = '0.5';
+      icon.textContent = '🎲';
+      songEl.textContent = 'Todavía no hay jugadores';
+      artistEl.textContent = 'Compartí el link para sumar gente';
+      tagsEl.innerHTML = '';
+    } else if (itsMyTurn) {
+      btn.disabled = false;
+      btn.textContent = 'Sortear ↓';
+      btn.style.opacity = '1';
+      icon.textContent = '🎲';
+      songEl.textContent = '¡Es tu turno!';
+      artistEl.textContent = 'Tocá sortear';
+      tagsEl.innerHTML = '';
+    } else {
+      btn.disabled = true;
+      btn.textContent = `Le toca a ${holder.name}`;
+      btn.style.opacity = '0.5';
+      icon.textContent = '⏳';
+      songEl.textContent = `Turno de ${holder.name}`;
+      artistEl.textContent = 'Esperá tu turno';
+      tagsEl.innerHTML = '';
+    }
   } else if (groupCurrentTurn.holderId === myDeviceId) {
     // Soy yo quien tiene el turno — veo mi canción
     btn.disabled = false;
@@ -822,11 +900,12 @@ function renderTurnUI() {
     tagsEl.innerHTML = (groupCurrentTurn.lists||[]).map(l => `<span class="result-tag">${esc(l)}</span>`).join('');
   } else {
     // Otra persona tiene el turno — bloqueado, no veo la canción
+    const holderName = groupParticipants.find(p => p.deviceId === groupCurrentTurn.holderId)?.name || 'otra persona';
     btn.disabled = true;
     btn.textContent = 'Esperando que termine el turno…';
     btn.style.opacity = '0.5';
     icon.textContent = '🙈';
-    songEl.textContent = 'Le toca a otra persona';
+    songEl.textContent = `Le tocó a ${holderName}`;
     artistEl.textContent = 'No podés ver esta canción';
     tagsEl.innerHTML = '';
   }
@@ -835,17 +914,23 @@ function renderTurnUI() {
 window.randomize = async () => {
   if (groupCode) {
     if (groupEnded) return;
-    // Si ya tengo el turno, este toque significa "terminar mi turno"
+    const holder = currentTurnHolder();
+    if (!holder) { toast('Todavía no hay jugadores en la sesión'); return; }
+
+    // Si ya tengo el turno tomado, este toque significa "terminar mi turno" y pasar al siguiente
     if (groupCurrentTurn && groupCurrentTurn.holderId === myDeviceId) {
       try {
-        await updateDoc(doc(db, 'groupSessions', groupCode), { currentTurn: null });
+        const nextIndex = (groupTurnIndex + 1) % groupParticipants.length;
+        await updateDoc(doc(db, 'groupSessions', groupCode), { currentTurn: null, turnIndex: nextIndex });
       } catch(e) { toast('Error: ' + e.message); }
       return;
     }
-    // Si otra persona tiene el turno, no hago nada (botón debería estar deshabilitado)
+    // Si hay un turno activo de otra persona, no hago nada
     if (groupCurrentTurn) return;
+    // Si no me toca a mí por orden, no hago nada
+    if (holder.deviceId !== myDeviceId) return;
 
-    // Turno libre — sorteo y tomo el turno
+    // Me toca y el turno está libre — sorteo
     const pool = getPool();
     if (!pool.length) { toast('No hay canciones en esta selección'); return; }
     const playedIds = new Set(groupPlayedIds);
@@ -923,7 +1008,6 @@ function renderHistory() {
   const list = document.getElementById('history-list');
 
   if (groupCode) {
-    // En sesión grupal: solo se muestra el historial completo si la partida terminó
     if (!groupEnded || !groupHistory.length) { section.style.display = 'none'; return; }
     section.style.display = 'block';
     list.innerHTML = groupHistory.map((p, i) => `
@@ -937,7 +1021,6 @@ function renderHistory() {
     return;
   }
 
-  // Modo local: historial visible siempre
   const order = [...sessionPlayed].map(id => songs.find(s => s.id === id)).filter(Boolean).map(s => ({ song: s.song, artist: s.artist }));
   if (!order.length) { section.style.display = 'none'; return; }
   section.style.display = 'block';
@@ -953,8 +1036,8 @@ function renderHistory() {
 
 window.resetSession = async () => {
   if (groupCode) {
-    confirm2('¿Reiniciar la sesión grupal?', 'Se va a borrar el historial y se podrá volver a jugar desde cero.', async () => {
-      await updateDoc(doc(db, 'groupSessions', groupCode), { playedIds: [], history: [], currentTurn: null, ended: false });
+    confirm2('¿Reiniciar la sesión grupal?', 'Se va a borrar el historial y se vuelve a empezar por el primer jugador.', async () => {
+      await updateDoc(doc(db, 'groupSessions', groupCode), { playedIds: [], history: [], currentTurn: null, turnIndex: 0, ended: false });
       toast('Sesión grupal reiniciada');
     });
     return;

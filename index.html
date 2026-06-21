@@ -154,13 +154,15 @@
 </div>
 
 <!-- BANNER: ABRIR EN LA APP -->
-<div id="open-app-banner" style="display:none;background:var(--accent);color:#fff;padding:12px 16px;padding-top:calc(12px + var(--safe-top));align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:60;">
-  <div style="font-size:13px;line-height:1.4">
-    <strong>📲 Tenés la app instalada</strong><br>Abrila ahí para una mejor experiencia
+<div id="open-app-banner" style="display:none;background:var(--accent);color:#fff;padding:12px 16px;padding-top:calc(12px + var(--safe-top));gap:10px;position:relative;z-index:60;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+    <div style="font-size:14px;font-weight:700">📲 Tenés la app instalada</div>
+    <button onclick="dismissOpenAppBanner()" style="flex-shrink:0;padding:6px 10px;border-radius:99px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;font-size:12px;cursor:pointer">✕ Cerrar</button>
   </div>
-  <div style="display:flex;gap:6px;flex-shrink:0">
-    <button onclick="openInInstalledApp()" style="padding:8px 12px;border-radius:99px;border:none;background:#fff;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Abrir app</button>
-    <button onclick="dismissOpenAppBanner()" style="padding:8px 10px;border-radius:99px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;font-size:12px;cursor:pointer">✕</button>
+  <div style="font-size:13px;line-height:1.5;margin-bottom:10px">Para unirte directo desde la app, copiá el código y abrí Tararealo desde tu pantalla de inicio.</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div style="background:rgba(255,255,255,0.2);border-radius:var(--radius-xs);padding:8px 14px;font-size:20px;font-weight:700;letter-spacing:0.12em" id="app-banner-code"></div>
+    <button onclick="copyBannerCode()" style="padding:8px 14px;border-radius:99px;border:none;background:#fff;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer">Copiar código</button>
   </div>
 </div>
 
@@ -201,6 +203,7 @@
     </div>
     <div class="filter-row" id="filter-pills"></div>
     <button class="btn-primary" onclick="randomize()">Sortear ↓</button>
+    <button class="btn-reset" id="btn-reroll" onclick="reroll()" style="display:none">🔀 No la conozco — otra canción</button>
     <button class="btn-reset" id="btn-reset-session" onclick="resetSession()">↺ Reiniciar sesión</button>
     <button class="btn-reset" id="btn-leave-game" onclick="leaveGameOnly()" style="display:none">🚪 Salir de la partida</button>
     <button class="btn-reset" id="btn-end-game" onclick="endGame()" style="display:none;color:var(--red);border-color:var(--red)">🏁 Terminar partida</button>
@@ -911,8 +914,24 @@ function renderGroupBar() {
   // mostramos un banner para sugerir abrir la app instalada en su lugar.
   const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
   if (s && !isStandalone) {
+    // Guarda el código para que la app lo detecte cuando se abra desde el ícono
+    localStorage.setItem('tararealo_pending_session', s.toUpperCase());
     const banner = document.getElementById('open-app-banner');
-    if (banner) banner.style.display = 'flex';
+    const bannerCode = document.getElementById('app-banner-code');
+    if (banner) banner.style.display = 'block';
+    if (bannerCode) bannerCode.textContent = s.toUpperCase();
+  }
+
+  // Si estamos en la app instalada, revisamos si hay un código pendiente guardado
+  if (isStandalone) {
+    const pending = localStorage.getItem('tararealo_pending_session');
+    if (pending && !s) {
+      localStorage.removeItem('tararealo_pending_session');
+      // Unirse automáticamente a la sesión pendiente
+      ensureNameThen(() => joinGroupSession(pending, false));
+      return;
+    }
+    if (pending) localStorage.removeItem('tararealo_pending_session');
   }
 
   if (s) ensureNameThen(() => joinGroupSession(s.toUpperCase(), false));
@@ -924,10 +943,19 @@ window.dismissOpenAppBanner = () => {
   if (banner) banner.style.display = 'none';
 };
 
+window.copyBannerCode = async () => {
+  const code = document.getElementById('app-banner-code')?.textContent || '';
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('¡Código copiado! Ahora abrí la app desde tu pantalla de inicio');
+  } catch(e) {
+    toast(`Código: ${code} — Abrí la app y usá "Unirme con código"`);
+  }
+};
+
 window.openInInstalledApp = () => {
-  // iOS no permite abrir una PWA instalada por código de forma 100% confiable.
-  // Mostramos instrucciones claras como respaldo.
-  toast('Cerrá esta pestaña y abrí el ícono de Tararealo desde tu pantalla de inicio');
+  const code = document.getElementById('app-banner-code')?.textContent || '';
+  toast(code ? `Copiá el código ${code} y abrí Tararealo desde tu pantalla de inicio` : 'Abrí el ícono de Tararealo desde tu pantalla de inicio');
 };
 
 // ---- SORTEO (sin repetir, local o grupal con turnos fijos) ----
@@ -941,11 +969,13 @@ function renderTurnUI() {
   const endBtn = document.getElementById('btn-end-game');
   const resetBtn = document.getElementById('btn-reset-session');
   const leaveBtn = document.getElementById('btn-leave-game');
+  const rerollBtn = document.getElementById('btn-reroll');
 
   if (!groupCode) {
     if (endBtn) endBtn.style.display = 'none';
     if (leaveBtn) leaveBtn.style.display = 'none';
     if (resetBtn) resetBtn.style.display = 'block';
+    // re-roll solo se muestra después de sortear (controlado por showResultLocal)
     return;
   }
 
@@ -975,6 +1005,7 @@ function renderTurnUI() {
   const itsMyTurn = holder && holder.deviceId === myDeviceId;
 
   if (!groupCurrentTurn) {
+    if (rerollBtn) rerollBtn.style.display = 'none';
     // Turno libre — pero solo puede sortear quien corresponde por orden
     if (!holder) {
       btn.disabled = true;
@@ -1010,18 +1041,43 @@ function renderTurnUI() {
     songEl.textContent = groupCurrentTurn.song;
     artistEl.textContent = groupCurrentTurn.artist;
     tagsEl.innerHTML = (groupCurrentTurn.lists||[]).map(l => `<span class="result-tag">${esc(l)}</span>`).join('');
+    if (rerollBtn) rerollBtn.style.display = 'block';
   } else {
     // Otra persona tiene el turno — bloqueado, no veo la canción
+    if (rerollBtn) rerollBtn.style.display = 'none';
     const holderName = groupParticipants.find(p => p.deviceId === groupCurrentTurn.holderId)?.name || 'otra persona';
     btn.disabled = true;
     btn.textContent = 'Esperando que termine el turno…';
     btn.style.opacity = '0.5';
     icon.textContent = '🙈';
-    songEl.textContent = `Le tocó a ${holderName}`;
+    songEl.textContent = `Le toca a ${holderName}`;
     artistEl.textContent = 'No podés ver esta canción';
     tagsEl.innerHTML = '';
   }
 }
+
+// ---- RE-ROLL: sacar otra canción (para cuando no la conocen) — solo modo grupal ----
+window.reroll = async () => {
+  if (!groupCode) return;
+  // Solo puede re-rollear quien tiene el turno activo
+  if (!groupCurrentTurn || groupCurrentTurn.holderId !== myDeviceId) return;
+  const pool = getPool();
+  if (!pool.length) { toast('No hay canciones en esta selección'); return; }
+  const playedIds = new Set(groupPlayedIds);
+  const currentId = groupCurrentTurn.id;
+  let unplayed = pool.filter(s => !playedIds.has(s.id) && s.id !== currentId);
+  if (!unplayed.length) unplayed = pool.filter(s => s.id !== currentId);
+  if (!unplayed.length) { toast('No hay más canciones disponibles'); return; }
+  const pick = unplayed[Math.floor(Math.random() * unplayed.length)];
+  const entry = { holderId: myDeviceId, id: pick.id, song: pick.song, artist: pick.artist, lists: pick.lists || [], ts: Date.now() };
+  try {
+    await updateDoc(doc(db, 'groupSessions', groupCode), {
+      currentTurn: entry,
+      playedIds: [...groupPlayedIds, pick.id],
+      history: [...groupHistory.slice(0, -1), entry], // reemplaza la última entrada del historial
+    });
+  } catch(e) { toast('Error: ' + e.message); }
+};
 
 window.randomize = async () => {
   if (groupCode) {

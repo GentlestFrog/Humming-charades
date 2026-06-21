@@ -1000,7 +1000,7 @@ window.endGame = () => {
       await updateDoc(doc(db, 'groupSessions', groupCode), { ended: true, currentTurn: null });
       toast('¡Partida terminada! 🏁');
     } catch(e) { toast('Error: ' + e.message); }
-  });
+  }, 'Terminar partida', false);
 };
 
 function renderHistory() {
@@ -1039,7 +1039,7 @@ window.resetSession = async () => {
     confirm2('¿Reiniciar la sesión grupal?', 'Se va a borrar el historial y se vuelve a empezar por el primer jugador.', async () => {
       await updateDoc(doc(db, 'groupSessions', groupCode), { playedIds: [], history: [], currentTurn: null, turnIndex: 0, ended: false });
       toast('Sesión grupal reiniciada');
-    });
+    }, 'Reiniciar', false);
     return;
   }
   sessionPlayed.clear();
@@ -1116,7 +1116,8 @@ window.addSong = async () => {
     confirm2(
       '⚠️ Esta canción ya existe',
       `"${dup.song}" de ${dup.artist} ya está cargada en: ${(dup.lists||[]).join(', ')}.\n\n¿Querés agregarla igual?`,
-      async () => { await reallyAddSong(song, artist); }
+      async () => { await reallyAddSong(song, artist); },
+      'Agregar igual', false
     );
     return;
   }
@@ -1193,7 +1194,8 @@ window.bulkImport = async () => {
       await batch.commit();
       document.getElementById('inp-bulk').value='';
       toast(`¡${parsed.length} canciones importadas!`);
-    }
+    },
+    'Importar', false
   );
 };
 
@@ -1326,11 +1328,15 @@ window.toast = (msg) => {
 };
 
 window.closeConfirm = ()=>document.getElementById('confirm-overlay').classList.remove('open');
-function confirm2(title,body,cb){
-  document.getElementById('confirm-title').textContent=title;
-  document.getElementById('confirm-body').textContent=body;
+function confirm2(title, body, cb, confirmLabel, danger) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-body').textContent = body;
+  const okBtn = document.getElementById('confirm-ok');
+  okBtn.textContent = confirmLabel || 'Eliminar';
+  const isDanger = danger !== false; // por defecto rojo, salvo que se indique lo contrario
+  okBtn.className = isDanger ? 'btn-danger' : 'btn-confirm';
   document.getElementById('confirm-overlay').classList.add('open');
-  document.getElementById('confirm-ok').onclick=async()=>{ closeConfirm(); await cb(); };
+  okBtn.onclick = async () => { closeConfirm(); await cb(); };
 }
 </script>
 </body>

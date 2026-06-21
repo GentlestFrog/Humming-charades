@@ -174,6 +174,10 @@
 
   <!-- PESTAÑA SORTEAR -->
   <div id="screen-randomize" class="screen active">
+
+    <!-- BLOQUE DE SESIÓN GRUPAL -->
+    <div id="group-session-bar" style="margin-bottom:14px"></div>
+
     <div class="result-card" id="result-card">
       <div class="result-icon">🎲</div>
       <div class="result-song" id="res-song">Listo para sortear</div>
@@ -187,6 +191,14 @@
     <div class="filter-row" id="filter-pills"></div>
     <button class="btn-primary" onclick="randomize()">Sortear ↓</button>
     <button class="btn-reset" onclick="resetSession()">↺ Reiniciar sesión</button>
+    <button class="btn-reset" id="btn-end-game" onclick="endGame()" style="display:none;color:var(--red);border-color:var(--red)">🏁 Terminar partida</button>
+
+    <!-- HISTORIAL DE CANCIONES SORTEADAS -->
+    <div id="history-section" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <div class="section-label" style="margin-top:0">🎶 Reproducidas en esta sesión</div>
+      <div id="history-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
     <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
       <input type="text" id="search-inp" placeholder="🔍 Buscar canciones o artistas…" oninput="renderSearch()" autocomplete="off" style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;outline:none;">
       <div id="search-results" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
@@ -351,6 +363,38 @@
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeSignedIn()">Cerrar</button>
       <button class="btn-danger" onclick="doSignOut()">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE SESIÓN GRUPAL: COMPARTIR -->
+<div class="modal-overlay" id="group-share-overlay" onclick="closeGroupShare()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>🎉 Sesión grupal creada</h3>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px;line-height:1.5">Compartí este link para que se sumen. Mientras estén conectados, nadie va a escuchar una canción repetida.</p>
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin-bottom:6px">Código de sesión</div>
+      <div style="font-size:28px;font-weight:700;letter-spacing:0.1em;color:var(--accent)" id="group-code-display">XXXX</div>
+    </div>
+    <button class="btn-secondary btn-accent" onclick="copyGroupLink()" style="margin-bottom:8px">🔗 Copiar link para compartir</button>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeGroupShare()">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE SESIÓN GRUPAL: UNIRSE MANUALMENTE -->
+<div class="modal-overlay" id="group-join-overlay" onclick="closeGroupJoin()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Unirse a sesión grupal</h3>
+    <div class="form-group">
+      <label class="lbl">Código de sesión</label>
+      <input type="text" id="group-join-code" placeholder="ej: XK4P" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')submitJoinGroup()">
+    </div>
+    <p id="group-join-error" style="color:var(--red);font-size:13px;display:none;margin-bottom:6px"></p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeGroupJoin()">Cancelar</button>
+      <button class="btn-confirm" onclick="submitJoinGroup()">Unirme</button>
     </div>
   </div>
 </div>
@@ -577,27 +621,272 @@ function renderSuggestions() {
     </div>`).join('');
 }
 
-// ---- SORTEO (sin repetir) ----
+// ---- SESIÓN GRUPAL ----
+let groupCode = null;       // código de la sesión grupal activa, o null si es local
+let groupPlayedIds = [];    // IDs ya sorteados (para no repetir) — visible siempre
+let groupHistory = [];      // historial completo {song, artist, lists, ts} — oculto hasta terminar partida
+let groupCurrentTurn = null; // {holderId, song, artist, lists, ts} o null si está libre
+let groupEnded = false;
+let unsubGroup = null;
+let myDeviceId = (function() {
+  let id = localStorage.getItem('tararealo_device_id');
+  if (!id) {
+    id = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('tararealo_device_id', id);
+  }
+  return id;
+})();
+
+function genGroupCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin caracteres ambiguos
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+window.createGroupSession = async () => {
+  const code = genGroupCode();
+  try {
+    await setDoc(doc(db, 'groupSessions', code), {
+      createdAt: Date.now(),
+      playedIds: [],
+      history: [],
+      currentTurn: null,
+      ended: false,
+    });
+    joinGroupSession(code);
+    document.getElementById('group-code-display').textContent = code;
+    document.getElementById('group-share-overlay').classList.add('open');
+  } catch(e) { toast('Error creando la sesión: ' + e.message); }
+};
+
+window.copyGroupLink = async () => {
+  const url = `${location.origin}${location.pathname}?session=${groupCode}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('¡Link copiado!');
+  } catch(e) {
+    toast(url);
+  }
+};
+
+window.closeGroupShare = () => document.getElementById('group-share-overlay').classList.remove('open');
+
+window.openGroupJoin = () => {
+  document.getElementById('group-join-code').value = '';
+  document.getElementById('group-join-error').style.display = 'none';
+  document.getElementById('group-join-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('group-join-code').focus(), 200);
+};
+window.closeGroupJoin = () => document.getElementById('group-join-overlay').classList.remove('open');
+
+window.submitJoinGroup = () => {
+  const code = document.getElementById('group-join-code').value.trim().toUpperCase();
+  if (!code) return;
+  closeGroupJoin();
+  joinGroupSession(code);
+};
+
+function joinGroupSession(code) {
+  if (unsubGroup) unsubGroup();
+  groupCode = code;
+  const url = new URL(location.href);
+  url.searchParams.set('session', code);
+  history.replaceState({}, '', url);
+
+  unsubGroup = onSnapshot(doc(db, 'groupSessions', code), snap => {
+    if (!snap.exists()) {
+      toast('Esa sesión grupal no existe o ya terminó');
+      leaveGroupSession();
+      return;
+    }
+    const data = snap.data();
+    groupPlayedIds = data.playedIds || [];
+    groupHistory = data.history || [];
+    groupCurrentTurn = data.currentTurn || null;
+    groupEnded = !!data.ended;
+    renderGroupBar();
+    renderTurnUI();
+    renderHistory();
+  });
+  renderGroupBar();
+  toast(`Te uniste a la sesión ${code} 🎉`);
+}
+
+window.leaveGroupSession = () => {
+  if (unsubGroup) unsubGroup();
+  unsubGroup = null;
+  groupCode = null;
+  groupPlayedIds = [];
+  groupHistory = [];
+  groupCurrentTurn = null;
+  groupEnded = false;
+  const url = new URL(location.href);
+  url.searchParams.delete('session');
+  history.replaceState({}, '', url);
+  renderGroupBar();
+  window.resetSession();
+  toast('Saliste de la sesión grupal');
+};
+
+function renderGroupBar() {
+  const bar = document.getElementById('group-session-bar');
+  if (!bar) return;
+  if (groupCode) {
+    bar.innerHTML = `
+      <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent)">🟣 Sesión grupal: ${esc(groupCode)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:1px">Juego por turnos — cada uno ve solo su canción</div>
+        </div>
+        <button onclick="leaveGroupSession()" style="flex-shrink:0;padding:7px 12px;border-radius:99px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;cursor:pointer">Salir</button>
+      </div>`;
+  } else {
+    bar.innerHTML = `
+      <div style="display:flex;gap:8px">
+        <button onclick="createGroupSession()" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer">👥 Crear sesión grupal</button>
+        <button onclick="openGroupJoin()" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer">🔗 Unirme con código</button>
+      </div>`;
+  }
+}
+
+// Detecta ?session=XXXX en la URL al cargar
+(function checkUrlForSession() {
+  const params = new URLSearchParams(location.search);
+  const s = params.get('session');
+  if (s) joinGroupSession(s.toUpperCase());
+  else { renderGroupBar(); renderTurnUI(); }
+})();
+
+// ---- SORTEO (sin repetir, local o grupal con turnos) ----
 function getPool() {
   if (filterLists.length === 0) return songs;
   return songs.filter(s => s.lists && s.lists.some(l => filterLists.includes(l)));
 }
 
-window.randomize = () => {
+function getPlayedIds() {
+  if (groupCode) return new Set(groupPlayedIds);
+  return sessionPlayed;
+}
+
+// Controla qué se ve: botón sortear, tarjeta de resultado, mensajes de turno
+function renderTurnUI() {
+  const endBtn = document.getElementById('btn-end-game');
+  const resetBtn = document.querySelector('#screen-randomize .btn-reset:not(#btn-end-game)');
+
+  if (!groupCode) {
+    // en modo local no hay turnos ni botón de terminar partida
+    if (endBtn) endBtn.style.display = 'none';
+    if (resetBtn) resetBtn.style.display = 'block';
+    return;
+  }
+
+  if (endBtn) endBtn.style.display = groupEnded ? 'none' : 'block';
+  if (resetBtn) resetBtn.style.display = 'block';
+
+  const btn = document.querySelector('#screen-randomize .btn-primary');
+  const card = document.getElementById('result-card');
+  const icon = card.querySelector('.result-icon');
+  const songEl = document.getElementById('res-song');
+  const artistEl = document.getElementById('res-artist');
+  const tagsEl = document.getElementById('res-tags');
+
+  if (groupEnded) {
+    btn.style.display = 'none';
+    icon.textContent = '🏁';
+    songEl.textContent = 'Partida terminada';
+    artistEl.textContent = 'Mirá la lista completa abajo';
+    tagsEl.innerHTML = '';
+    return;
+  }
+
+  btn.style.display = 'block';
+
+  if (!groupCurrentTurn) {
+    // Turno libre — cualquiera puede sortear
+    btn.disabled = false;
+    btn.textContent = 'Sortear ↓';
+    btn.style.opacity = '1';
+    icon.textContent = '🎲';
+    songEl.textContent = 'Listo para sortear';
+    artistEl.textContent = 'Tocá sortear cuando te toque tu turno';
+    tagsEl.innerHTML = '';
+  } else if (groupCurrentTurn.holderId === myDeviceId) {
+    // Soy yo quien tiene el turno — veo mi canción
+    btn.disabled = false;
+    btn.textContent = '✓ Listo, siguiente turno';
+    btn.style.opacity = '1';
+    icon.textContent = '🎵';
+    songEl.textContent = groupCurrentTurn.song;
+    artistEl.textContent = groupCurrentTurn.artist;
+    tagsEl.innerHTML = (groupCurrentTurn.lists||[]).map(l => `<span class="result-tag">${esc(l)}</span>`).join('');
+  } else {
+    // Otra persona tiene el turno — bloqueado, no veo la canción
+    btn.disabled = true;
+    btn.textContent = 'Esperando que termine el turno…';
+    btn.style.opacity = '0.5';
+    icon.textContent = '🙈';
+    songEl.textContent = 'Le toca a otra persona';
+    artistEl.textContent = 'No podés ver esta canción';
+    tagsEl.innerHTML = '';
+  }
+}
+
+window.randomize = async () => {
+  if (groupCode) {
+    if (groupEnded) return;
+    // Si ya tengo el turno, este toque significa "terminar mi turno"
+    if (groupCurrentTurn && groupCurrentTurn.holderId === myDeviceId) {
+      try {
+        await updateDoc(doc(db, 'groupSessions', groupCode), { currentTurn: null });
+      } catch(e) { toast('Error: ' + e.message); }
+      return;
+    }
+    // Si otra persona tiene el turno, no hago nada (botón debería estar deshabilitado)
+    if (groupCurrentTurn) return;
+
+    // Turno libre — sorteo y tomo el turno
+    const pool = getPool();
+    if (!pool.length) { toast('No hay canciones en esta selección'); return; }
+    const playedIds = new Set(groupPlayedIds);
+    let unplayed = pool.filter(s => !playedIds.has(s.id));
+    let justReset = false;
+    if (unplayed.length === 0) {
+      justReset = true;
+      unplayed = [...pool];
+    }
+    const pick = unplayed[Math.floor(Math.random() * unplayed.length)];
+    const entry = { holderId: myDeviceId, id: pick.id, song: pick.song, artist: pick.artist, lists: pick.lists || [], ts: Date.now() };
+    try {
+      await updateDoc(doc(db, 'groupSessions', groupCode), {
+        currentTurn: entry,
+        playedIds: justReset ? [pick.id] : [...groupPlayedIds, pick.id],
+        history: justReset ? [entry] : [...groupHistory, entry],
+      });
+      if (justReset) toast('¡Ya se mostraron todas! Arrancamos de nuevo 🔄');
+    } catch(e) { toast('Error: ' + e.message); }
+    return;
+  }
+
+  // ---- Modo local (sin sesión grupal) ----
   const pool = getPool();
   if (!pool.length) { toast('No hay canciones en esta selección'); return; }
 
   let unplayed = pool.filter(s => !sessionPlayed.has(s.id));
+  let justReset = false;
   if (unplayed.length === 0) {
-    // Ya se mostraron todas — reinicia y empieza de nuevo
-    sessionPlayed.clear();
+    justReset = true;
     unplayed = [...pool];
     toast('¡Ya se mostraron todas! Arrancamos de nuevo 🔄');
   }
+  if (justReset) sessionPlayed.clear();
 
   const pick = unplayed[Math.floor(Math.random() * unplayed.length)];
   sessionPlayed.add(pick.id);
+  showResultLocal(pick, pool);
+};
 
+function showResultLocal(pick, pool) {
   const card = document.getElementById('result-card');
   card.style.opacity = '0';
   setTimeout(() => {
@@ -608,18 +897,68 @@ window.randomize = () => {
     const tagsEl = document.getElementById('res-tags');
     tagsEl.innerHTML = (pick.lists||[]).map(l => `<span class="result-tag">${esc(l)}</span>`).join('');
 
-    // Progreso
     const played = pool.filter(s => sessionPlayed.has(s.id)).length;
     const total = pool.length;
     document.getElementById('prog-wrap').style.display = 'block';
     document.getElementById('prog-bar').style.width = `${(played/total)*100}%`;
     document.getElementById('prog-label').textContent = `${played} de ${total} mostradas en esta sesión`;
+    renderHistory();
 
     card.style.opacity = '1';
   }, 150);
+}
+
+window.endGame = () => {
+  if (!groupCode) return;
+  confirm2('¿Terminar la partida?', 'Se va a revelar la lista completa de canciones para todos.', async () => {
+    try {
+      await updateDoc(doc(db, 'groupSessions', groupCode), { ended: true, currentTurn: null });
+      toast('¡Partida terminada! 🏁');
+    } catch(e) { toast('Error: ' + e.message); }
+  });
 };
 
-window.resetSession = () => {
+function renderHistory() {
+  const section = document.getElementById('history-section');
+  const list = document.getElementById('history-list');
+
+  if (groupCode) {
+    // En sesión grupal: solo se muestra el historial completo si la partida terminó
+    if (!groupEnded || !groupHistory.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = groupHistory.map((p, i) => `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:var(--radius-xs);padding:9px 12px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text3);width:20px;flex-shrink:0">${i+1}</span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.song)}</div>
+          <div style="font-size:12px;color:var(--text2)">${esc(p.artist)}</div>
+        </div>
+      </div>`).join('');
+    return;
+  }
+
+  // Modo local: historial visible siempre
+  const order = [...sessionPlayed].map(id => songs.find(s => s.id === id)).filter(Boolean).map(s => ({ song: s.song, artist: s.artist }));
+  if (!order.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = order.map((p, i) => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:var(--radius-xs);padding:9px 12px;">
+      <span style="font-size:12px;font-weight:700;color:var(--text3);width:20px;flex-shrink:0">${i+1}</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.song)}</div>
+        <div style="font-size:12px;color:var(--text2)">${esc(p.artist)}</div>
+      </div>
+    </div>`).join('');
+}
+
+window.resetSession = async () => {
+  if (groupCode) {
+    confirm2('¿Reiniciar la sesión grupal?', 'Se va a borrar el historial y se podrá volver a jugar desde cero.', async () => {
+      await updateDoc(doc(db, 'groupSessions', groupCode), { playedIds: [], history: [], currentTurn: null, ended: false });
+      toast('Sesión grupal reiniciada');
+    });
+    return;
+  }
   sessionPlayed.clear();
   const wrap = document.getElementById('prog-wrap');
   wrap.style.display = 'none';
@@ -628,6 +967,7 @@ window.resetSession = () => {
   document.getElementById('res-artist').textContent = 'Elegí una lista y tocá sortear';
   document.getElementById('res-tags').innerHTML = '';
   document.getElementById('result-card').querySelector('.result-icon').textContent = '🎲';
+  renderHistory();
   toast('Sesión reiniciada');
 };
 
@@ -636,15 +976,16 @@ function renderPills() {
   const c = document.getElementById('filter-pills');
   c.innerHTML = '';
   const all = mkEl('button','pill'+(filterLists.length===0?' active':''),'Todas');
-  all.onclick = () => { filterLists=[]; sessionPlayed.clear(); renderPills(); };
+  all.onclick = () => { filterLists=[]; if(!groupCode) sessionPlayed.clear(); renderPills(); renderHistory(); };
   c.appendChild(all);
   lists.forEach(l => {
     const p = mkEl('button','pill'+(filterLists.includes(l.name)?' active':''),l.name);
     p.onclick = () => {
       const i = filterLists.indexOf(l.name);
       i>-1 ? filterLists.splice(i,1) : filterLists.push(l.name);
-      sessionPlayed.clear();
+      if(!groupCode) sessionPlayed.clear();
       renderPills();
+      renderHistory();
     };
     c.appendChild(p);
   });
@@ -669,12 +1010,37 @@ function renderListChecks(containerId, selectedArr) {
 }
 
 // ---- AGREGAR CANCIÓN ----
+function normalizeForDupCheck(str) {
+  return str.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // saca acentos
+}
+
+function findDuplicateSong(song, artist) {
+  const ns = normalizeForDupCheck(song);
+  const na = normalizeForDupCheck(artist);
+  return songs.find(s => normalizeForDupCheck(s.song) === ns && normalizeForDupCheck(s.artist) === na);
+}
+
 window.addSong = async () => {
   if (!isAdmin) return;
   const song = document.getElementById('inp-song').value.trim();
   const artist = document.getElementById('inp-artist').value.trim();
   if (!song || !artist) { toast('Completá el título y el artista'); return; }
   if (!addSelectedLists.length) { toast('Elegí al menos una lista'); return; }
+
+  const dup = findDuplicateSong(song, artist);
+  if (dup) {
+    confirm2(
+      '⚠️ Esta canción ya existe',
+      `"${dup.song}" de ${dup.artist} ya está cargada en: ${(dup.lists||[]).join(', ')}.\n\n¿Querés agregarla igual?`,
+      async () => { await reallyAddSong(song, artist); }
+    );
+    return;
+  }
+  await reallyAddSong(song, artist);
+};
+
+async function reallyAddSong(song, artist) {
   try {
     await addDoc(collection(db,'songs'), { song, artist, lists: [...addSelectedLists], createdAt: Date.now() });
     document.getElementById('inp-song').value = '';
@@ -683,7 +1049,7 @@ window.addSong = async () => {
     renderListChecks('add-list-checks', addSelectedLists);
     toast('¡Canción agregada!');
   } catch(e) { toast('Error: '+e.message); }
-};
+}
 
 window.deleteSong = (id, name) => {
   if (!isAdmin) return;
@@ -729,9 +1095,15 @@ window.bulkImport = async () => {
     return { song: line.slice(0,sep).trim(), artist: line.slice(sep+3).trim(), lists:[...addSelectedLists], createdAt:Date.now() };
   }).filter(Boolean);
   if (!parsed.length) { toast('No se encontraron líneas válidas. Usá: Canción - Artista'); return; }
+
+  const dups = parsed.filter(p => findDuplicateSong(p.song, p.artist));
+  const dupWarning = dups.length
+    ? `\n\n⚠️ ${dups.length} ya existe${dups.length>1?'n':''}: ${dups.slice(0,3).map(d=>d.song).join(', ')}${dups.length>3?'…':''}`
+    : '';
+
   confirm2(
     `¿Importar ${parsed.length} canción${parsed.length>1?'es':''}?`,
-    `A la lista: ${addSelectedLists.join(', ')}\n\nPrimeras canciones: ${parsed.slice(0,3).map(p=>p.song).join(', ')}${parsed.length>3?'…':''}`,
+    `A la lista: ${addSelectedLists.join(', ')}\n\nPrimeras canciones: ${parsed.slice(0,3).map(p=>p.song).join(', ')}${parsed.length>3?'…':''}${dupWarning}`,
     async () => {
       const batch = writeBatch(db);
       parsed.forEach(p => batch.set(doc(collection(db,'songs')),p));

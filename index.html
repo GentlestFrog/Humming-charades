@@ -153,6 +153,17 @@
   <p>Cargando…</p>
 </div>
 
+<!-- BANNER: ABRIR EN LA APP -->
+<div id="open-app-banner" style="display:none;background:var(--accent);color:#fff;padding:12px 16px;padding-top:calc(12px + var(--safe-top));align-items:center;justify-content:space-between;gap:10px;">
+  <div style="font-size:13px;line-height:1.4">
+    <strong>📲 Tenés la app instalada</strong><br>Abrila ahí para una mejor experiencia
+  </div>
+  <div style="display:flex;gap:6px;flex-shrink:0">
+    <button onclick="openInInstalledApp()" style="padding:8px 12px;border-radius:99px;border:none;background:#fff;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Abrir app</button>
+    <button onclick="dismissOpenAppBanner()" style="padding:8px 10px;border-radius:99px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;font-size:12px;cursor:pointer">✕</button>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-left">
     <h1>🎵 Tararealo</h1>
@@ -190,7 +201,8 @@
     </div>
     <div class="filter-row" id="filter-pills"></div>
     <button class="btn-primary" onclick="randomize()">Sortear ↓</button>
-    <button class="btn-reset" onclick="resetSession()">↺ Reiniciar sesión</button>
+    <button class="btn-reset" id="btn-reset-session" onclick="resetSession()">↺ Reiniciar sesión</button>
+    <button class="btn-reset" id="btn-leave-game" onclick="leaveGameOnly()" style="display:none">🚪 Salir de la partida</button>
     <button class="btn-reset" id="btn-end-game" onclick="endGame()" style="display:none;color:var(--red);border-color:var(--red)">🏁 Terminar partida</button>
 
     <!-- HISTORIAL DE CANCIONES SORTEADAS -->
@@ -294,6 +306,16 @@
       </div>
     </div>
     <div id="lists-view"></div>
+
+    <!-- PANEL DE ADMIN: SESIONES GRUPALES -->
+    <div id="group-sessions-admin" style="display:none">
+      <hr class="divider">
+      <div class="section-label" style="margin-top:0;display:flex;justify-content:space-between;align-items:center">
+        <span>🎮 Sesiones grupales</span>
+        <button onclick="loadGroupSessionsAdmin()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-transform:none;font-weight:600">↻ Actualizar</button>
+      </div>
+      <div id="group-sessions-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
   </div>
 
 </div>
@@ -371,10 +393,13 @@
 <div class="modal-overlay" id="group-share-overlay" onclick="closeGroupShare()">
   <div class="modal" onclick="event.stopPropagation()">
     <h3>🎉 Sesión grupal creada</h3>
-    <p style="color:var(--text2);font-size:14px;margin-bottom:14px;line-height:1.5">Compartí este link para que se sumen. Mientras estén conectados, nadie va a escuchar una canción repetida.</p>
-    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;">
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px;line-height:1.5">Compartí este link o que escaneen el código QR para sumarse. Mientras estén conectados, nadie va a escuchar una canción repetida.</p>
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;text-align:center;">
       <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin-bottom:6px">Código de sesión</div>
-      <div style="font-size:28px;font-weight:700;letter-spacing:0.1em;color:var(--accent)" id="group-code-display">XXXX</div>
+      <div style="font-size:28px;font-weight:700;letter-spacing:0.1em;color:var(--accent);margin-bottom:14px" id="group-code-display">XXXX</div>
+      <div style="background:#fff;border-radius:var(--radius-sm);padding:10px;display:inline-block;">
+        <img id="group-qr-img" src="" alt="Código QR para unirse" width="180" height="180" style="display:block">
+      </div>
     </div>
     <button class="btn-secondary btn-accent" onclick="copyGroupLink()" style="margin-bottom:8px">🔗 Copiar link para compartir</button>
     <div class="modal-btns">
@@ -417,7 +442,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch }
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch, getDocs }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // =============================================
@@ -540,6 +565,12 @@ function updateAdminUI() {
   // Actualiza visibilidad del badge
   const badge = document.getElementById('suggestions-badge');
   if (badge) badge.style.display = suggestions.length > 0 && isAdmin ? 'inline' : 'none';
+  // Panel de sesiones grupales (solo admin)
+  const panel = document.getElementById('group-sessions-admin');
+  if (panel) {
+    panel.style.display = isAdmin ? 'block' : 'none';
+    if (isAdmin) loadGroupSessionsAdmin();
+  }
 }
 
 // ---- DATOS EN TIEMPO REAL ----
@@ -643,6 +674,7 @@ let groupCurrentTurn = null; // {holderId, song, artist, lists, ts} o null si es
 let groupParticipants = [];  // [{deviceId, name, joinedAt}] en orden de llegada
 let groupTurnIndex = 0;      // índice en groupParticipants de quién le toca ahora
 let groupEnded = false;
+let groupCreatorId = null; // deviceId de quien creó la sesión — solo esta persona puede terminar la partida
 let unsubGroup = null;
 let pendingGroupAction = null; // 'create' o código a unir, mientras se pide el nombre
 let myDeviceId = (function() {
@@ -662,13 +694,13 @@ function genGroupCode() {
   return code;
 }
 
-// ---- Pedido de nombre (se usa tanto para crear como para unirse) ----
+// ---- Pedido de nombre (se pide siempre al crear/unirse, pre-rellenado con el último usado) ----
 function ensureNameThen(action) {
-  if (myDeviceName) { action(); return; }
   pendingGroupAction = action;
-  document.getElementById('group-name-input').value = '';
+  const input = document.getElementById('group-name-input');
+  input.value = myDeviceName || '';
   document.getElementById('group-name-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('group-name-input').focus(), 200);
+  setTimeout(() => { input.focus(); input.select(); }, 200);
 }
 
 window.submitGroupName = () => {
@@ -686,6 +718,7 @@ window.createGroupSession = () => {
     try {
       await setDoc(doc(db, 'groupSessions', code), {
         createdAt: Date.now(),
+        creatorId: myDeviceId,
         playedIds: [],
         history: [],
         currentTurn: null,
@@ -695,6 +728,9 @@ window.createGroupSession = () => {
       });
       joinGroupSession(code, true);
       document.getElementById('group-code-display').textContent = code;
+      const joinUrl = `${location.origin}${location.pathname}?session=${code}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&data=${encodeURIComponent(joinUrl)}`;
+      document.getElementById('group-qr-img').src = qrUrl;
       document.getElementById('group-share-overlay').classList.add('open');
     } catch(e) { toast('Error creando la sesión: ' + e.message); }
   });
@@ -737,7 +773,7 @@ async function joinGroupSession(code, isCreator) {
   unsubGroup = onSnapshot(doc(db, 'groupSessions', code), async snap => {
     if (!snap.exists()) {
       toast('Esa sesión grupal no existe o ya terminó');
-      leaveGroupSession();
+      disconnectLocally();
       return;
     }
     const data = snap.data();
@@ -747,6 +783,7 @@ async function joinGroupSession(code, isCreator) {
     groupParticipants = data.participants || [];
     groupTurnIndex = data.turnIndex || 0;
     groupEnded = !!data.ended;
+    groupCreatorId = data.creatorId || null;
 
     // Si no estoy en la lista de participantes todavía, me agrego (solo si no soy quien creó la sesión, eso ya se hizo)
     if (!isCreator && !groupParticipants.some(p => p.deviceId === myDeviceId)) {
@@ -765,7 +802,50 @@ async function joinGroupSession(code, isCreator) {
   toast(`Te uniste a la sesión ${code} 🎉`);
 }
 
-window.leaveGroupSession = () => {
+// Saca a esta persona de la partida en Firebase: reordena sin huecos y pasa el turno si era el suyo
+window.leaveGameOnly = async () => {
+  if (!groupCode) return;
+  confirm2('¿Salir de la partida?', 'Vas a tener que volver a entrar por el link para sumarte de nuevo. Tu lugar en el orden de turnos lo van a ocupar los que siguen.', async () => {
+    await removeMeFromGroup();
+  }, 'Salir', false);
+};
+
+async function removeMeFromGroup() {
+  if (!groupCode) return;
+  try {
+    const myIndexBefore = groupParticipants.findIndex(p => p.deviceId === myDeviceId);
+    const newParticipants = groupParticipants.filter(p => p.deviceId !== myDeviceId);
+
+    let newTurnIndex = groupTurnIndex;
+    let newCurrentTurn = groupCurrentTurn;
+
+    if (newParticipants.length > 0) {
+      // Si justo tenía yo el turno tomado, lo libero y paso al siguiente
+      if (groupCurrentTurn && groupCurrentTurn.holderId === myDeviceId) {
+        newCurrentTurn = null;
+      }
+      // Reordeno el índice de turno para que siga apuntando a la misma persona relativa
+      if (myIndexBefore !== -1 && myIndexBefore < groupTurnIndex) {
+        newTurnIndex = groupTurnIndex - 1;
+      }
+      newTurnIndex = newTurnIndex % newParticipants.length;
+    } else {
+      newTurnIndex = 0;
+      newCurrentTurn = null;
+    }
+
+    await updateDoc(doc(db, 'groupSessions', groupCode), {
+      participants: newParticipants,
+      turnIndex: newTurnIndex,
+      currentTurn: newCurrentTurn,
+    });
+  } catch(e) {
+    // si falla (p. ej. la sesión ya no existe), no es grave — igual desconectamos localmente
+  }
+  disconnectLocally();
+}
+
+function disconnectLocally() {
   if (unsubGroup) unsubGroup();
   unsubGroup = null;
   groupCode = null;
@@ -775,11 +855,19 @@ window.leaveGroupSession = () => {
   groupParticipants = [];
   groupTurnIndex = 0;
   groupEnded = false;
+  groupCreatorId = null;
   const url = new URL(location.href);
   url.searchParams.delete('session');
   history.replaceState({}, '', url);
   renderGroupBar();
+  renderTurnUI();
   window.resetSession();
+}
+
+// Botón "Salir" de la barra de sesión (arriba) — misma lógica que salir de la partida
+window.leaveGroupSession = async () => {
+  if (!groupCode) return;
+  await removeMeFromGroup();
   toast('Saliste de la sesión grupal');
 };
 
@@ -818,9 +906,29 @@ function renderGroupBar() {
 (function checkUrlForSession() {
   const params = new URLSearchParams(location.search);
   const s = params.get('session');
+
+  // Si estamos en Safari normal (no en la app instalada) y venimos de un link de sesión,
+  // mostramos un banner para sugerir abrir la app instalada en su lugar.
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  if (s && !isStandalone) {
+    const banner = document.getElementById('open-app-banner');
+    if (banner) banner.style.display = 'flex';
+  }
+
   if (s) ensureNameThen(() => joinGroupSession(s.toUpperCase(), false));
   else { renderGroupBar(); renderTurnUI(); }
 })();
+
+window.dismissOpenAppBanner = () => {
+  const banner = document.getElementById('open-app-banner');
+  if (banner) banner.style.display = 'none';
+};
+
+window.openInInstalledApp = () => {
+  // iOS no permite abrir una PWA instalada por código de forma 100% confiable.
+  // Mostramos instrucciones claras como respaldo.
+  toast('Cerrá esta pestaña y abrí el ícono de Tararealo desde tu pantalla de inicio');
+};
 
 // ---- SORTEO (sin repetir, local o grupal con turnos fijos) ----
 function getPool() {
@@ -831,16 +939,20 @@ function getPool() {
 // Controla qué se ve: botón sortear, tarjeta de resultado, mensajes de turno
 function renderTurnUI() {
   const endBtn = document.getElementById('btn-end-game');
-  const resetBtn = document.querySelector('#screen-randomize .btn-reset:not(#btn-end-game)');
+  const resetBtn = document.getElementById('btn-reset-session');
+  const leaveBtn = document.getElementById('btn-leave-game');
 
   if (!groupCode) {
     if (endBtn) endBtn.style.display = 'none';
+    if (leaveBtn) leaveBtn.style.display = 'none';
     if (resetBtn) resetBtn.style.display = 'block';
     return;
   }
 
-  if (endBtn) endBtn.style.display = groupEnded ? 'none' : 'block';
-  if (resetBtn) resetBtn.style.display = 'block';
+  const amCreator = groupCreatorId === myDeviceId;
+  if (endBtn) endBtn.style.display = (groupEnded || !amCreator) ? 'none' : 'block';
+  if (leaveBtn) leaveBtn.style.display = groupEnded ? 'none' : 'block';
+  if (resetBtn) resetBtn.style.display = amCreator ? 'block' : 'none';
 
   const btn = document.querySelector('#screen-randomize .btn-primary');
   const card = document.getElementById('result-card');
@@ -995,6 +1107,7 @@ function showResultLocal(pick, pool) {
 
 window.endGame = () => {
   if (!groupCode) return;
+  if (groupCreatorId !== myDeviceId) { toast('Solo quien creó la sesión puede terminarla'); return; }
   confirm2('¿Terminar la partida?', 'Se va a revelar la lista completa de canciones para todos.', async () => {
     try {
       await updateDoc(doc(db, 'groupSessions', groupCode), { ended: true, currentTurn: null });
@@ -1036,6 +1149,7 @@ function renderHistory() {
 
 window.resetSession = async () => {
   if (groupCode) {
+    if (groupCreatorId !== myDeviceId) { toast('Solo quien creó la sesión puede reiniciarla'); return; }
     confirm2('¿Reiniciar la sesión grupal?', 'Se va a borrar el historial y se vuelve a empezar por el primer jugador.', async () => {
       await updateDoc(doc(db, 'groupSessions', groupCode), { playedIds: [], history: [], currentTurn: null, turnIndex: 0, ended: false });
       toast('Sesión grupal reiniciada');
@@ -1286,6 +1400,49 @@ function renderLists() {
     </div>`;
   }).join('');
 }
+
+// ---- PANEL ADMIN: SESIONES GRUPALES ----
+window.loadGroupSessionsAdmin = async () => {
+  const c = document.getElementById('group-sessions-list');
+  if (!c || !isAdmin) return;
+  c.innerHTML = '<div class="empty" style="padding:16px 0">Cargando…</div>';
+  try {
+    const snap = await getDocs(collection(db, 'groupSessions'));
+    const allSessions = snap.docs.map(d => ({ code: d.id, ...d.data() }))
+      .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+    if (!allSessions.length) {
+      c.innerHTML = '<div class="empty" style="padding:16px 0">No hay sesiones grupales guardadas</div>';
+      return;
+    }
+
+    c.innerHTML = allSessions.map(s => {
+      const dt = s.createdAt ? new Date(s.createdAt).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+      const estado = s.ended ? '🏁 Terminada' : '🟢 Activa';
+      const numJugadores = (s.participants||[]).length;
+      const numCanciones = (s.history||[]).length;
+      return `<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(s.code)} <span style="font-weight:500;color:var(--text2);font-size:12px">· ${estado}</span></div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${numJugadores} jugador${numJugadores!==1?'es':''} · ${numCanciones} canción${numCanciones!==1?'es':''} · ${dt}</div>
+        </div>
+        <button class="btn-icon" onclick="deleteGroupSessionAdmin('${esc(s.code)}')" title="Eliminar">✕</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    c.innerHTML = `<div class="empty" style="padding:16px 0">Error cargando sesiones: ${esc(e.message)}</div>`;
+  }
+};
+
+window.deleteGroupSessionAdmin = (code) => {
+  confirm2(`¿Eliminar la sesión "${code}"?`, 'Se va a borrar el historial y el código para siempre.', async () => {
+    try {
+      await deleteDoc(doc(db, 'groupSessions', code));
+      toast('Sesión eliminada');
+      loadGroupSessionsAdmin();
+    } catch(e) { toast('Error: ' + e.message); }
+  });
+};
 
 // ---- BÚSQUEDA ----
 window.renderSearch = () => {

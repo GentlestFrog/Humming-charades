@@ -315,7 +315,10 @@
       <hr class="divider">
       <div class="section-label" style="margin-top:0;display:flex;justify-content:space-between;align-items:center">
         <span>🎮 Sesiones grupales</span>
-        <button onclick="loadGroupSessionsAdmin()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-transform:none;font-weight:600">↻ Actualizar</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="deleteAllGroupSessionsAdmin()" style="background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;text-transform:none;font-weight:600">🗑 Borrar todas</button>
+          <button onclick="loadGroupSessionsAdmin()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-transform:none;font-weight:600">↻ Actualizar</button>
+        </div>
       </div>
       <div id="group-sessions-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>

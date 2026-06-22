@@ -156,7 +156,7 @@
 <!-- BANNER: ABRIR EN LA APP -->
 <div id="open-app-banner" style="display:none;background:var(--accent);color:#fff;padding:12px 16px;padding-top:calc(12px + var(--safe-top));gap:10px;position:relative;z-index:60;">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
-    <div style="font-size:14px;font-weight:700">📲 /'¿Tenés la app instalada?</div>
+    <div style="font-size:14px;font-weight:700">📲 Tenés la app instalada</div>
     <button onclick="dismissOpenAppBanner()" style="flex-shrink:0;padding:6px 10px;border-radius:99px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;font-size:12px;cursor:pointer">✕ Cerrar</button>
   </div>
   <div style="font-size:13px;line-height:1.5;margin-bottom:10px">Para unirte directo desde la app, copiá el código y abrí Tararealo desde tu pantalla de inicio.</div>
@@ -1491,6 +1491,27 @@ window.loadGroupSessionsAdmin = async () => {
   } catch(e) {
     c.innerHTML = `<div class="empty" style="padding:16px 0">Error cargando sesiones: ${esc(e.message)}</div>`;
   }
+};
+
+window.deleteAllGroupSessionsAdmin = async () => {
+  if (!isAdmin) return;
+  const snap = await getDocs(collection(db, 'groupSessions')).catch(() => null);
+  if (!snap || snap.empty) { toast('No hay sesiones para borrar'); return; }
+  const count = snap.docs.length;
+  confirm2(
+    `¿Borrar las ${count} sesión${count !== 1 ? 'es' : ''} grupales?`,
+    'Se va a eliminar el historial y los códigos de todas las sesiones. Esta acción no se puede deshacer.',
+    async () => {
+      try {
+        const batch = writeBatch(db);
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        toast(`${count} sesión${count !== 1 ? 'es' : ''} eliminada${count !== 1 ? 's' : ''}`);
+        loadGroupSessionsAdmin();
+      } catch(e) { toast('Error: ' + e.message); }
+    },
+    'Borrar todas'
+  );
 };
 
 window.deleteGroupSessionAdmin = (code) => {
